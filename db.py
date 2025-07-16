@@ -10,9 +10,6 @@ PORT = "5432"
 DBNAME = "postgres"
 
 def get_connection():
-    """
-    Her istekte yeni veritabanı bağlantısı döner.
-    """
     try:
         conn = psycopg2.connect(
             user=USER,
