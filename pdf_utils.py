@@ -1,9 +1,11 @@
 import os
 from fpdf import FPDF
 
-DEFAULT_FONT = "notoSans"
-FONT_FILE = "notoSans-regular.ttf"
-LOGO_FILE = "logo.png"
+BASE_DIR = os.path.dirname(__file__)
+FONT_FILE = os.path.join(BASE_DIR, "NotoSans-Regular.ttf")
+LOGO_FILE = os.path.join(BASE_DIR, "logo.png")
+DEFAULT_FONT = "Notosans"
+
 
 class CustomPDF(FPDF):
     def header(self):
