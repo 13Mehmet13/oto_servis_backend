@@ -3,7 +3,7 @@ from io import BytesIO
 import json, traceback
 from decimal import Decimal
 
-from db import cursor                # psycopg2 cursor nesneniz
+from db import get_conn             # psycopg2 cursor nesneniz
 from pdf_utils import CustomPDF, load_fonts   # bkz. pdf_utils.py
 
 servis_pdf_bp = Blueprint("servis_pdf", __name__)
