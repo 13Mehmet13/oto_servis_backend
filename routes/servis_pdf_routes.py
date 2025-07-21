@@ -198,16 +198,14 @@ def servis_pdf(servis_id: int):
         pdf.cell(95,6,"",ln=0);          pdf.cell(95,6,"İmza",ln=1)
 
         # PDF yanıt
-        buf = BytesIO(pdf.output(dest="S").encode("latin-1")) 
-        buf.seek(0)
+        buf = BytesIO(pdf.output(dest="S")); buf.seek(0)
         filename = f"kuzucular_{arac.get('plaka','').replace(' ','')}_{tarih.strftime('%d%m%Y')}.pdf"
         return send_file(
-    buf,
-    mimetype="application/pdf",
-    download_name=filename,
-    as_attachment=True  # 🔥 Bu satır zorunlu oldu artık
-)
-
+        buf,
+        mimetype="application/pdf",
+        download_name=filename,
+        as_attachment=False  # ✅ Bu satır eklendi
+    )
     
 
     except Exception as err:
