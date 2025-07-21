@@ -185,8 +185,11 @@ def indir_servis_pdf():
     try:
         arac_id = int(request.args.get("arac_id"))
         km = int(request.args.get("km"))
+        
         pdf_path = create_servis_pdf(arac_id, km)
-        absolute_path = os.path.abspath(pdf_path)
-        return send_file(absolute_path, as_attachment=False)
+        absolute_path = os.path.abspath(pdf_path)  # 👈 Tam yol alın
+
+        return send_file(absolute_path, as_attachment=False)  # 👈 Dosyayı aç, indirme yerine göster
+
     except Exception as e:
         return jsonify({"durum": "hata", "mesaj": str(e)})
