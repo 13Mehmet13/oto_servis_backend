@@ -27,22 +27,20 @@ def f_int(v, d=0):
 # ───────────────────────────────────────────────────────
 
 
+
 @servis_pdf_bp.route("/servis/pdf/<int:servis_id>", methods=["GET"])
 def servis_pdf(servis_id: int):
-    """Servis PDF çıktısı – Yakıt Durumu barı KM'den sonra değil, PLAKA'dan sonra gelir"""
     try:
-        # 1) Servis ve araç JSON’u ------------------------------------------------
-        cursor.execute(
-            """
-            SELECT tarih, iscilik_ucreti, parcalar_json::text, arac_json::text, sikayetler
-            FROM servis
-            WHERE id = %s
-            """,
-            (servis_id,),
-        )
-        rec = cursor.fetchone()
-        if not rec:
-            return jsonify({"durum": "hata", "mesaj": "Servis bulunamadı"}), 404
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT tarih, iscilik_ucreti, parcalar_json::text, arac_json::text, sikayetler
+                    FROM servis
+                    WHERE id = %s
+                """, (servis_id,))
+                rec = cursor.fetchone()
+                if not rec:
+                    return jsonify({"durum": "hata", "mesaj": "Servis bulunamadı"}), 404
 
         tarih, iscilik_raw, p_json, a_json, sikayetler = rec
         iscilik = f_float(iscilik_raw)
