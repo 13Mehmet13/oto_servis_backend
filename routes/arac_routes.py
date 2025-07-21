@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 import traceback
-from db import cursor, conn
+from db import get_conn
 
 arac_bp = Blueprint("arac", __name__)
 
@@ -8,66 +8,67 @@ arac_bp = Blueprint("arac", __name__)
 @arac_bp.route("/araclar", methods=["GET"])
 def arac_listele():
     try:
-        cursor.execute("""
-            SELECT 
-                a.id,
-                a.plaka,
-                a.model,
-                a.km,
-                a.model_yili,
-                a.yakit_cinsi,
-                a.sasi_no,
-                m.ad AS marka,
-                CASE 
-                    WHEN a.musteri_tipi = 'sahis' THEN mus.ad || ' ' || mus.soyad
-                    WHEN a.musteri_tipi = 'kurum' THEN k.ad
-                    ELSE 'Bilinmiyor'
-                END AS musteri_adi,
-                CASE 
-                    WHEN a.musteri_tipi = 'sahis' THEN mus.telefon
-                    WHEN a.musteri_tipi = 'kurum' THEN k.telefon
-                    ELSE ''
-                END AS musteri_telefon
-            FROM arac a
-            LEFT JOIN marka m ON a.marka_id = m.id
-            LEFT JOIN musteri mus ON a.musteri_id = mus.id AND a.musteri_tipi = 'sahis'
-            LEFT JOIN kurum k ON a.musteri_id = k.id AND a.musteri_tipi = 'kurum'
-            ORDER BY a.id DESC
-        """)
-        rows = cursor.fetchall()
-        araclar = []
-        for row in rows:
-            araclar.append({
-                "id": row[0],
-                "plaka": row[1],
-                "model": row[2],
-                "km": row[3],
-                "model_yili": row[4],
-                "yakit_cinsi": row[5],
-                "sasi_no": row[6],
-                "marka": row[7],
-                "musteri_adi": row[8],
-                "musteri_telefon": row[9],  # ✅ yeni alan
-            })
-        return jsonify(araclar), 200
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT 
+                        a.id,
+                        a.plaka,
+                        a.model,
+                        a.km,
+                        a.model_yili,
+                        a.yakit_cinsi,
+                        a.sasi_no,
+                        m.ad AS marka,
+                        CASE 
+                            WHEN a.musteri_tipi = 'sahis' THEN mus.ad || ' ' || mus.soyad
+                            WHEN a.musteri_tipi = 'kurum' THEN k.ad
+                            ELSE 'Bilinmiyor'
+                        END AS musteri_adi,
+                        CASE 
+                            WHEN a.musteri_tipi = 'sahis' THEN mus.telefon
+                            WHEN a.musteri_tipi = 'kurum' THEN k.telefon
+                            ELSE ''
+                        END AS musteri_telefon
+                    FROM arac a
+                    LEFT JOIN marka m ON a.marka_id = m.id
+                    LEFT JOIN musteri mus ON a.musteri_id = mus.id AND a.musteri_tipi = 'sahis'
+                    LEFT JOIN kurum k ON a.musteri_id = k.id AND a.musteri_tipi = 'kurum'
+                    ORDER BY a.id DESC
+                """)
+                rows = cursor.fetchall()
+                araclar = []
+                for row in rows:
+                    araclar.append({
+                        "id": row[0],
+                        "plaka": row[1],
+                        "model": row[2],
+                        "km": row[3],
+                        "model_yili": row[4],
+                        "yakit_cinsi": row[5],
+                        "sasi_no": row[6],
+                        "marka": row[7],
+                        "musteri_adi": row[8],
+                        "musteri_telefon": row[9],
+                    })
+                return jsonify(araclar), 200
     except Exception as e:
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
-
-
 
 # ✅ Marka listesini getir
 @arac_bp.route("/arac/markalar", methods=["GET"])
 def get_markalar():
     try:
-        cursor.execute("SELECT id, ad FROM marka ORDER BY ad ASC")
-        markalar = cursor.fetchall()
-        marka_listesi = [{"id": row[0], "ad": row[1]} for row in markalar]
-        return jsonify(marka_listesi), 200
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT id, ad FROM marka ORDER BY ad ASC")
+                markalar = cursor.fetchall()
+                marka_listesi = [{"id": row[0], "ad": row[1]} for row in markalar]
+                return jsonify(marka_listesi), 200
     except Exception as e:
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
-
 
 # ✅ Yeni araç ekle
 @arac_bp.route("/arac/ekle", methods=["POST"])
@@ -97,89 +98,93 @@ def arac_ekle():
         model_yili_raw = request.form.get("model_yili")
         model_yili = int(model_yili_raw) if model_yili_raw and model_yili_raw.isdigit() else None
 
-        cursor.execute(
-            """
-            INSERT INTO arac (
-                plaka, model, motor, kw, musteri_id, musteri_tipi,
-                km, yakit_durumu, yakit_cinsi, sasi_no, marka_id, model_yili
-            )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """,
-            (
-                plaka, model, motor, kw, musteri_id, musteri_tipi,
-                km, yakit_durumu, yakit_cinsi, sasi_no, marka_id, model_yili
-            )
-        )
-        conn.commit()
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO arac (
+                        plaka, model, motor, kw, musteri_id, musteri_tipi,
+                        km, yakit_durumu, yakit_cinsi, sasi_no, marka_id, model_yili
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        plaka, model, motor, kw, musteri_id, musteri_tipi,
+                        km, yakit_durumu, yakit_cinsi, sasi_no, marka_id, model_yili
+                    )
+                )
+                conn.commit()
         return jsonify({"durum": "başarılı", "mesaj": "Araç eklendi."}), 200
 
     except Exception as e:
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
-    
-    # marka_routes.py içinde
+
 @arac_bp.route("/marka/<int:id>", methods=["GET"])
 def marka_detay(id):
     try:
-        cursor.execute("SELECT ad FROM marka WHERE id = %s", (id,))
-        row = cursor.fetchone()
-        if not row:
-            return jsonify({"mesaj": "Marka bulunamadı"}), 404
-        return jsonify({"ad": row[0]}), 200
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT ad FROM marka WHERE id = %s", (id,))
+                row = cursor.fetchone()
+                if not row:
+                    return jsonify({"mesaj": "Marka bulunamadı"}), 404
+                return jsonify({"ad": row[0]}), 200
     except Exception as e:
         return jsonify({"hata": str(e)}), 500
 
 @arac_bp.route("/arac/<int:id>", methods=["GET"])
 def arac_detay(id):
     try:
-        cursor.execute("""
-            SELECT 
-                a.id,
-                a.plaka,
-                a.model,
-                a.motor,
-                a.kw,
-                a.km,
-                a.model_yili,
-                a.yakit_cinsi,
-                a.sasi_no,
-                m.ad AS marka,
-                CASE 
-                    WHEN a.musteri_tipi = 'sahis' THEN mus.ad || ' ' || mus.soyad
-                    WHEN a.musteri_tipi = 'kurum' THEN k.ad
-                    ELSE 'Bilinmiyor'
-                END AS musteri_adi,
-                CASE 
-                    WHEN a.musteri_tipi = 'sahis' THEN mus.telefon
-                    WHEN a.musteri_tipi = 'kurum' THEN k.telefon
-                    ELSE ''
-                END AS musteri_telefon
-            FROM arac a
-            LEFT JOIN marka m ON a.marka_id = m.id
-            LEFT JOIN musteri mus ON a.musteri_id = mus.id AND a.musteri_tipi = 'sahis'
-            LEFT JOIN kurum k ON a.musteri_id = k.id AND a.musteri_tipi = 'kurum'
-            WHERE a.id = %s
-        """, (id,))
-        
-        row = cursor.fetchone()
-        if not row:
-            return jsonify({"durum": "hata", "mesaj": "Araç bulunamadı"}), 404
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT 
+                        a.id,
+                        a.plaka,
+                        a.model,
+                        a.motor,
+                        a.kw,
+                        a.km,
+                        a.model_yili,
+                        a.yakit_cinsi,
+                        a.sasi_no,
+                        m.ad AS marka,
+                        CASE 
+                            WHEN a.musteri_tipi = 'sahis' THEN mus.ad || ' ' || mus.soyad
+                            WHEN a.musteri_tipi = 'kurum' THEN k.ad
+                            ELSE 'Bilinmiyor'
+                        END AS musteri_adi,
+                        CASE 
+                            WHEN a.musteri_tipi = 'sahis' THEN mus.telefon
+                            WHEN a.musteri_tipi = 'kurum' THEN k.telefon
+                            ELSE ''
+                        END AS musteri_telefon
+                    FROM arac a
+                    LEFT JOIN marka m ON a.marka_id = m.id
+                    LEFT JOIN musteri mus ON a.musteri_id = mus.id AND a.musteri_tipi = 'sahis'
+                    LEFT JOIN kurum k ON a.musteri_id = k.id AND a.musteri_tipi = 'kurum'
+                    WHERE a.id = %s
+                """, (id,))
+                row = cursor.fetchone()
+                if not row:
+                    return jsonify({"durum": "hata", "mesaj": "Araç bulunamadı"}), 404
 
-        arac = {
-            "id": row[0],
-            "plaka": row[1],
-            "model": row[2],
-            "motor": row[3],
-            "kw": row[4],
-            "km": row[5],
-            "model_yili": row[6],
-            "yakit_cinsi": row[7],
-            "sasi_no": row[8],
-            "marka": row[9],
-            "musteri_adi": row[10],
-            "musteri_telefon": row[11],
-        }
-        return jsonify(arac), 200
+                arac = {
+                    "id": row[0],
+                    "plaka": row[1],
+                    "model": row[2],
+                    "motor": row[3],
+                    "kw": row[4],
+                    "km": row[5],
+                    "model_yili": row[6],
+                    "yakit_cinsi": row[7],
+                    "sasi_no": row[8],
+                    "marka": row[9],
+                    "musteri_adi": row[10],
+                    "musteri_telefon": row[11],
+                }
+                return jsonify(arac), 200
 
     except Exception as e:
         traceback.print_exc()
