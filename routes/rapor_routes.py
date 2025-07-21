@@ -1,7 +1,7 @@
 from flask import Blueprint, send_file, jsonify
 from datetime import datetime
 from io import BytesIO
-from db import cursor
+from db import get_conn
 from pdf_utils import CustomPDF, load_fonts
 import textwrap
 
@@ -13,19 +13,21 @@ def aylik_rapor_pdf(year, month):
         start_date = datetime(year, month, 1)
         end_date = datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)
 
-        cursor.execute(
-            """
-            SELECT p.ad, SUM(sp.adet)
-            FROM servis_parca sp
-            JOIN servis s ON sp.servis_id = s.id
-            JOIN parca p ON sp.parca_id = p.id
-            WHERE s.tarih >= %s AND s.tarih < %s
-            GROUP BY p.ad
-            ORDER BY SUM(sp.adet) DESC
-            """,
-            (start_date, end_date)
-        )
-        usage = cursor.fetchall()
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT p.ad, SUM(sp.adet)
+                    FROM servis_parca sp
+                    JOIN servis s ON sp.servis_id = s.id
+                    JOIN parca p ON sp.parca_id = p.id
+                    WHERE s.tarih >= %s AND s.tarih < %s
+                    GROUP BY p.ad
+                    ORDER BY SUM(sp.adet) DESC
+                    """,
+                    (start_date, end_date)
+                )
+                usage = cursor.fetchall()
 
         suggestions = [f"{ad} az kullanıldı ({adet}); gözden geçirin." for ad, adet in usage if adet < 5]
 
