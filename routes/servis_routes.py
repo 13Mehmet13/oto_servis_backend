@@ -1,11 +1,11 @@
 from flask import Blueprint, request, jsonify, send_file
-from db import get_conn
 from datetime import datetime
+from db import get_conn
+import json
+import os
 from fpdf import FPDF
-import traceback, os, json
 
 servis_bp = Blueprint("servis", __name__)
-
 
 def create_servis_pdf(arac_id, km):
     pdf = FPDF()
@@ -17,21 +17,20 @@ def create_servis_pdf(arac_id, km):
     pdf.output(file_path)
     return file_path
 
-
 @servis_bp.route("/servis/ekle", methods=["POST"])
 def servis_ekle():
     try:
-        arac_id        = int(request.form.get("arac_id"))
-        km             = int(request.form.get("km", 0))
-        yakit          = int(request.form.get("yakit", 0))
-        iscilik_ucreti = float(request.form.get("iscilik_ucreti", 0))
-        toplam_tutar   = float(request.form.get("toplam_tutar", 0))
-        sikayetler     = request.form.get("sikayetler", "")
-        aciklama       = request.form.get("aciklama", "")
-        parcalar       = json.loads(request.form.get("parcalar_json", "[]"))
-
         with get_conn() as conn:
             with conn.cursor() as cursor:
+                arac_id = int(request.form.get("arac_id"))
+                km = int(request.form.get("km", 0))
+                yakit = int(request.form.get("yakit", 0))
+                iscilik_ucreti = float(request.form.get("iscilik_ucreti", 0))
+                toplam_tutar = float(request.form.get("toplam_tutar", 0))
+                sikayetler = request.form.get("sikayetler", "")
+                aciklama = request.form.get("aciklama", "")
+                parcalar = json.loads(request.form.get("parcalar_json", "[]"))
+
                 cursor.execute("""
                     SELECT id, plaka, model, motor, kw, musteri_tipi, musteri_id,
                            km, yakit_cinsi, sasi_no, marka_id, model_yili, yakit_durumu
@@ -42,8 +41,8 @@ def servis_ekle():
                     return jsonify({"durum": "hata", "mesaj": "Araç bulunamadı"}), 404
 
                 arac_json = dict(zip([
-                    "id","plaka","model","motor","kw","musteri_tipi","musteri_id",
-                    "km","yakit_cinsi","sasi_no","marka_id","model_yili","yakit_durumu"
+                    "id", "plaka", "model", "motor", "kw", "musteri_tipi", "musteri_id",
+                    "km", "yakit_cinsi", "sasi_no", "marka_id", "model_yili", "yakit_durumu"
                 ], arac_row))
 
                 cursor.execute("SELECT ad FROM marka WHERE id = %s", (arac_json["marka_id"],))
@@ -82,8 +81,112 @@ def servis_ekle():
                                        (int(p.get("quantity", 0)), int(p["parca_id"])))
 
                 conn.commit()
-        return jsonify({"durum": "başarılı", "servis_id": servis_id}), 200
+                return jsonify({"durum": "başarılı", "servis_id": servis_id}), 200
 
     except Exception as e:
-        traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
+@servis_bp.route("/servis/detay/<int:servis_id>", methods=["GET"])
+def servis_detay(servis_id):
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT s.id, s.tarih, s.aciklama, s.sikayetler,
+                           s.iscilik_ucreti, s.toplam_tutar,
+                           s.parcalar_json::text, s.arac_json::text,
+                           a.musteri_tipi, a.musteri_id
+                    FROM servis s
+                    JOIN arac a ON s.arac_id = a.id
+                    WHERE s.id = %s
+                """, (servis_id,))
+                row = cursor.fetchone()
+                if not row:
+                    return jsonify({"durum": "hata", "mesaj": "Servis bulunamadı"}), 404
+
+                (sid, tarih, aciklama, sikayetler, iscilik, toplam,
+                 parcalar_raw, arac_raw, mus_tipi, mus_id) = row
+
+                detail = {
+                    "id": sid,
+                    "tarih": tarih.isoformat(timespec="seconds"),
+                    "aciklama": aciklama,
+                    "sikayetler": sikayetler,
+                    "iscilik_ucreti": iscilik,
+                    "toplam_tutar": toplam,
+                    "parcalar": json.loads(parcalar_raw or "[]"),
+                    "arac_json": json.loads(arac_raw or "{}"),
+                    "musteri_tipi": mus_tipi
+                }
+
+                if mus_tipi == "kurum":
+                    cursor.execute("""SELECT ad, telefon, adres, \"Yetkili Ad\", \"Yetkili Soyad\"
+                                      FROM kurum WHERE id=%s""", (mus_id,))
+                    k = cursor.fetchone()
+                    if k:
+                        detail |= {"unvan": k[0], "telefon": k[1], "adres": k[2],
+                                   "yetkili_ad": k[3], "yetkili_soyad": k[4]}
+                else:
+                    cursor.execute("SELECT ad, soyad, telefon FROM musteri WHERE id=%s", (mus_id,))
+                    k = cursor.fetchone()
+                    if k:
+                        detail |= {"musteri_ad": k[0], "musteri_soyad": k[1],
+                                   "telefon": k[2], "adres": ""}
+
+                return jsonify(detail), 200
+    except Exception as e:
+        return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
+@servis_bp.route("/servis/gecmis", methods=["GET"])
+def servis_gecmis():
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT s.id, s.tarih, s.toplam_tutar, s.arac_json->>'plaka',
+                           s.arac_json->>'marka', s.arac_json->>'model'
+                    FROM servis s ORDER BY s.tarih DESC
+                """)
+                rows = cursor.fetchall()
+                return jsonify([{
+                    "id": r[0],
+                    "tarih": r[1].isoformat(timespec="seconds"),
+                    "toplam_tutar": float(r[2]),
+                    "plaka": r[3],
+                    "marka": r[4],
+                    "model": r[5]
+                } for r in rows]), 200
+    except Exception as e:
+        return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
+@servis_bp.route("/servis/sil/<int:servis_id>", methods=["DELETE"])
+def servis_sil(servis_id):
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT parcalar_json::text
+                    FROM servis WHERE id = %s
+                """, (servis_id,))
+                rec = cursor.fetchone()
+                if not rec:
+                    return jsonify({"durum": "hata", "mesaj": "Servis bulunamadı"}), 404
+
+                parcalar = json.loads(rec[0] or "[]")
+
+                cursor.execute("DELETE FROM servis WHERE id = %s", (servis_id,))
+                conn.commit()
+                return jsonify({"durum": "başarılı"}), 200
+    except Exception as e:
+        return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
+@servis_bp.route("/servis/pdf/indir", methods=["GET"])
+def indir_servis_pdf():
+    try:
+        arac_id = int(request.args.get("arac_id"))
+        km = int(request.args.get("km"))
+        pdf_path = create_servis_pdf(arac_id, km)
+        absolute_path = os.path.abspath(pdf_path)
+        return send_file(absolute_path, as_attachment=False)
+    except Exception as e:
+        return jsonify({"durum": "hata", "mesaj": str(e)})
