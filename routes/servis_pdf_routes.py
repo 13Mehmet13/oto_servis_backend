@@ -2,8 +2,8 @@ from flask import Blueprint, send_file, jsonify
 from io import BytesIO
 import json, traceback
 from decimal import Decimal
-
-from db import get_conn             # psycopg2 cursor nesneniz
+from db import get_conn
+        # psycopg2 cursor nesneniz
 from pdf_utils import CustomPDF, load_fonts   # bkz. pdf_utils.py
 
 servis_pdf_bp = Blueprint("servis_pdf", __name__)
@@ -29,20 +29,22 @@ def f_int(v, d=0):
 
 @servis_pdf_bp.route("/servis/pdf/<int:servis_id>", methods=["GET"])
 def servis_pdf(servis_id: int):
+    """Servis PDF çıktısı – Yakıt Durumu barı KM'den sonra değil, PLAKA'dan sonra gelir"""
     try:
-        with get_conn() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    """
-                    SELECT tarih, iscilik_ucreti, parcalar_json::text, arac_json::text, sikayetler
-                    FROM servis
-                    WHERE id = %s
-                    """,
-                    (servis_id,),
-                )
-                rec = cursor.fetchone()
-                if not rec:
-                    return jsonify({"durum": "hata", "mesaj": "Servis bulunamadı"}), 404
+        # 1) Servis ve araç JSON’u ------------------------------------------------
+ with get_conn() as conn:
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT tarih, iscilik_ucreti, parcalar_json::text, arac_json::text, sikayetler
+            FROM servis
+            WHERE id = %s
+            """,
+            (servis_id,),
+        )
+        rec = cursor.fetchone()
+        if not rec:
+            return jsonify({"durum": "hata", "mesaj": "Servis bulunamadı"}), 404
 
         tarih, iscilik_raw, p_json, a_json, sikayetler = rec
         iscilik = f_float(iscilik_raw)
