@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from db import cursor, conn
+from db import get_conn
 
 marka_bp = Blueprint("marka", __name__)
 
@@ -12,9 +12,11 @@ def marka_ekle():
         if not marka_adi:
             return jsonify({"durum": "hata", "mesaj": "Marka adı gerekli"}), 400
 
-        cursor.execute("INSERT INTO marka (ad) VALUES (%s)", (marka_adi,))
-        conn.commit()
-        return jsonify({"durum": "basarili", "mesaj": "Marka eklendi"}), 200
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("INSERT INTO marka (ad) VALUES (%s)", (marka_adi,))
+                conn.commit()
+                return jsonify({"durum": "basarili", "mesaj": "Marka eklendi"}), 200
     except Exception as e:
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
 
@@ -22,9 +24,11 @@ def marka_ekle():
 @marka_bp.route("/marka/liste", methods=["GET"])
 def marka_liste():
     try:
-        cursor.execute("SELECT ad FROM marka ORDER BY ad ASC")
-        markalar = cursor.fetchall()
-        return jsonify(markalar), 200
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT ad FROM marka ORDER BY ad ASC")
+                markalar = cursor.fetchall()
+                return jsonify(markalar), 200
     except Exception as e:
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
 
@@ -39,9 +43,11 @@ def marka_guncelle():
         if not eski_ad or not yeni_ad:
             return jsonify({"durum": "hata", "mesaj": "Gerekli veriler eksik"}), 400
 
-        cursor.execute("UPDATE marka SET ad = %s WHERE ad = %s", (yeni_ad, eski_ad))
-        conn.commit()
-        return jsonify({"durum": "basarili", "mesaj": "Marka güncellendi"}), 200
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("UPDATE marka SET ad = %s WHERE ad = %s", (yeni_ad, eski_ad))
+                conn.commit()
+                return jsonify({"durum": "basarili", "mesaj": "Marka güncellendi"}), 200
     except Exception as e:
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
 
@@ -54,8 +60,10 @@ def marka_sil():
         if not marka_adi:
             return jsonify({"durum": "hata", "mesaj": "Marka adı gerekli"}), 400
 
-        cursor.execute("DELETE FROM marka WHERE ad = %s", (marka_adi,))
-        conn.commit()
-        return jsonify({"durum": "basarili", "mesaj": "Marka silindi"}), 200
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("DELETE FROM marka WHERE ad = %s", (marka_adi,))
+                conn.commit()
+                return jsonify({"durum": "basarili", "mesaj": "Marka silindi"}), 200
     except Exception as e:
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
