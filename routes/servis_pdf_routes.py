@@ -26,8 +26,6 @@ def f_int(v, d=0):
         return d
 # ───────────────────────────────────────────────────────
 
-
-
 @servis_pdf_bp.route("/servis/pdf/<int:servis_id>", methods=["GET"])
 def servis_pdf(servis_id: int):
     try:
@@ -42,30 +40,27 @@ def servis_pdf(servis_id: int):
                 if not rec:
                     return jsonify({"durum": "hata", "mesaj": "Servis bulunamadı"}), 404
 
-        tarih, iscilik_raw, p_json, a_json, sikayetler = rec
-        iscilik = f_float(iscilik_raw)
-        parcala = json.loads(p_json or "[]")
-        arac = json.loads(a_json or "{}")
+                tarih, iscilik_raw, p_json, a_json, sikayetler = rec
+                iscilik = float(iscilik_raw or 0)
+                parcala = json.loads(p_json or "[]")
+                arac = json.loads(a_json or "{}")
 
-        # 1.1 Marka adı -----------------------------------------------------------
-        marka_ad = "-"
-        if arac.get("marka_id"):
-            cursor.execute("SELECT ad FROM marka WHERE id = %s", (arac["marka_id"],))
-            m = cursor.fetchone()
-            if m:
-                marka_ad = m[0]
-        arac.setdefault("marka", marka_ad)
+                marka_ad = "-"
+                if arac.get("marka_id"):
+                    cursor.execute("SELECT ad FROM marka WHERE id = %s", (arac["marka_id"],))
+                    m = cursor.fetchone()
+                    if m:
+                        marka_ad = m[0]
+                arac.setdefault("marka", marka_ad)
 
-        # 1.2 Müşteri bilgisi ------------------------------------------------------
-        mus_adsoy, mus_tel = "-", "-"
-        mus_id = arac.get("musteri_id")
-        if mus_id:
-            cursor.execute("SELECT ad, soyad, telefon FROM musteri WHERE id = %s", (mus_id,))
-            m = cursor.fetchone()
-            if m:
-                mus_adsoy = f"{m[0]} {m[1]}"
-                mus_tel = m[2]
-
+                mus_adsoy, mus_tel = "-", "-"
+                mus_id = arac.get("musteri_id")
+                if mus_id:
+                    cursor.execute("SELECT ad, soyad, telefon FROM musteri WHERE id = %s", (mus_id,))
+                    m = cursor.fetchone()
+                    if m:
+                        mus_adsoy = f"{m[0]} {m[1]}"
+                        mus_tel = m[2]
         # 2) PDF Kurulumu ----------------------------------------------------------
         
         pdf = CustomPDF()
