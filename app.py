@@ -43,4 +43,4 @@ def home():
 # Uygulamayı başlat
 # Uygulamayı başlatma (systemd ya da gunicorn kullanıldığı için gerek yok)
 if __name__ == "__main__":
-app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=True, host="0.0.0.0", port=5000)
