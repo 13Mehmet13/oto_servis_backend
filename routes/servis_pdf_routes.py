@@ -2,8 +2,8 @@ from flask import Blueprint, send_file, jsonify
 from io import BytesIO
 import json, traceback
 from decimal import Decimal
-from db import get_conn
-        # psycopg2 cursor nesneniz
+
+from db import cursor                # psycopg2 cursor nesneniz
 from pdf_utils import CustomPDF, load_fonts   # bkz. pdf_utils.py
 
 servis_pdf_bp = Blueprint("servis_pdf", __name__)
@@ -32,8 +32,6 @@ def servis_pdf(servis_id: int):
     """Servis PDF çıktısı – Yakıt Durumu barı KM'den sonra değil, PLAKA'dan sonra gelir"""
     try:
         # 1) Servis ve araç JSON’u ------------------------------------------------
- with get_conn() as conn:
-    with conn.cursor() as cursor:
         cursor.execute(
             """
             SELECT tarih, iscilik_ucreti, parcalar_json::text, arac_json::text, sikayetler
@@ -200,14 +198,10 @@ def servis_pdf(servis_id: int):
         pdf.cell(95,6,"",ln=0);          pdf.cell(95,6,"İmza",ln=1)
 
         # PDF yanıt
-        buf = BytesIO(pdf.output(dest="S")); buf.seek(0)
+        buf = BytesIO(pdf.output(dest="S").encode("latin-1")) 
+        buf.seek(0)
         filename = f"kuzucular_{arac.get('plaka','').replace(' ','')}_{tarih.strftime('%d%m%Y')}.pdf"
-        return send_file(
-        buf,
-        mimetype="application/pdf",
-        download_name=filename,
-        as_attachment=False  # ✅ Bu satır eklendi
-    )
+        return send_file(buf, mimetype="application/pdf", download_name=filename)
     
 
     except Exception as err:
