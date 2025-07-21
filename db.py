@@ -1,11 +1,11 @@
 import psycopg2
 from psycopg2.extras import DictCursor
 
-USER = "servis_user"
-PASSWORD = "gizli123."
-HOST = "localhost"
+USER = "postgres.vpjltarimjmmvtryzpgl"
+PASSWORD = "13MehMet2003."
+HOST = "aws-0-eu-central-1.pooler.supabase.com"
 PORT = "5432"
-DBNAME = "oto_servis"
+DBNAME = "postgres"
 
 def get_conn():
     return psycopg2.connect(
