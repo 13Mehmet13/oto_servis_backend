@@ -77,15 +77,14 @@ def arac_ekle():
         plaka = request.form["plaka"]
         model = request.form["model"]
         motor = request.form.get("motor", "")
-        
         kw_raw = request.form.get("kw")
         kw = int(kw_raw) if kw_raw and kw_raw.isdigit() else None
 
         musteri_id = int(request.form["musteri_id"])
-
-        # 'şahıs' gibi Türkçe karakterli gelen veri varsa düzelt
-        musteri_tipi_raw = request.form.get("musteri_tipi", "sahis").lower()
-        musteri_tipi = musteri_tipi_raw.replace("ş", "s")
+        
+        # 🔧 Müşteri tipi düzeltme
+        musteri_tipi_raw = request.form.get("musteri_tipi", "sahis").strip().lower().replace("ş", "s")
+        musteri_tipi = "kurum" if musteri_tipi_raw == "kurum" else "sahis"
 
         km_raw = request.form.get("km")
         km = int(km_raw) if km_raw and km_raw.isdigit() else None
@@ -122,9 +121,9 @@ def arac_ekle():
         return jsonify({"durum": "başarılı", "mesaj": "Araç eklendi."}), 200
 
     except Exception as e:
-        import traceback
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
 
 @arac_bp.route("/marka/<int:id>", methods=["GET"])
 def marka_detay(id):
