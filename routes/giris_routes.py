@@ -27,22 +27,25 @@ def giris():
         if not check_password_hash(user[1], sifre):
             return jsonify({"durum": "hata", "mesaj": "Şifre yanlış."}), 401
 
-        if not user[3]:  # aktif mi?
-            return jsonify({"durum": "hata", "mesaj": "Hesabınız henüz aktif değil. Lütfen admin onayını bekleyin."}), 403
+        if not user[3]:  # aktif değilse
+            return jsonify({
+                "durum": "hata",
+                "mesaj": "Hesabınız henüz aktif değil. Lütfen admin onayını bekleyin."
+            }), 403
 
-        session["kullanici_id"] = user[0]
-        session["rol"] = user[2]
+        # Sahte token üretelim (gerçekte JWT önerilir)
+        fake_token = f"fake-token-{user[0]}"
 
         return jsonify({
             "durum": "basarili",
-            "kullanici_id": user[0],
-            "rol": user[2]
+            "token": fake_token,
+            "rol": user[2],
+            "kullanici_id": user[0]
         })
 
     except Exception as e:
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": f"Giriş hatası: {str(e)}"}), 500
-
 
 # ------------------------ KAYIT ----------------------------------- #
 @giris_bp.route("/register", methods=["POST"])
