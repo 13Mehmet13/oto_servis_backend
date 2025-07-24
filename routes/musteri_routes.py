@@ -149,69 +149,78 @@ def musterileri_detayli_getir(tip):
     except Exception as e:
         return jsonify({"hata": str(e)}), 500
 
-# ────────────────────────────────────────────────
-# 🔄 Şahıs Müşteri Güncelle
-# ────────────────────────────────────────────────
-@musteri_bp.route("/musteri/guncelle/<int:id>", methods=["POST"])
-def update_musteri(id):
-    try:
-        data = request.get_json()
-        cursor.execute("""
-            UPDATE musteri SET ad = %s, soyad = %s, telefon = %s
-            WHERE id = %s
-        """, (data["ad"], data["soyad"], data["telefon"], id))
-        conn.commit()
-        return jsonify({"durum": "ok"})
-    except Exception as e:
-        return jsonify({"hata": str(e)}), 500
+from flask import Blueprint, request, jsonify
+from db import get_conn
 
+musteri_bp = Blueprint("musteri", __name__)
 
-# ────────────────────────────────────────────────
-# 🔄 Kurum Müşteri Güncelle
-# ────────────────────────────────────────────────
-@musteri_bp.route("/kurum/guncelle/<int:id>", methods=["POST"])
-def update_kurum(id):
-    try:
-        data = request.get_json()
-        cursor.execute("""
-            UPDATE kurum SET unvan = %s, yetkili_ad = %s, yetkili_soyad = %s,
-            telefon = %s, adres = %s WHERE id = %s
-        """, (
-            data["ad"],
-            data.get("yetkili_ad", ""),
-            data.get("yetkili_soyad", ""),
-            data["telefon"],
-            data.get("adres", ""),
-            id
-        ))
-        conn.commit()
-        return jsonify({"durum": "ok"})
-    except Exception as e:
-        return jsonify({"hata": str(e)}), 500
-
-
-# ────────────────────────────────────────────────
-# ❌ Şahıs Müşteri Sil
-# ────────────────────────────────────────────────
+# Şahıs Sil
 @musteri_bp.route("/musteri/sil/<int:id>", methods=["DELETE"])
-def delete_musteri(id):
+def musteri_sil(id):
+    conn, cursor = get_conn()
     try:
         cursor.execute("DELETE FROM musteri WHERE id = %s", (id,))
         conn.commit()
         return jsonify({"durum": "ok"})
     except Exception as e:
+        conn.rollback()
         return jsonify({"hata": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
 
-
-# ────────────────────────────────────────────────
-# ❌ Kurum Müşteri Sil
-# ────────────────────────────────────────────────
+# Kurum Sil
 @musteri_bp.route("/kurum/sil/<int:id>", methods=["DELETE"])
-def delete_kurum(id):
+def kurum_sil(id):
+    conn, cursor = get_conn()
     try:
         cursor.execute("DELETE FROM kurum WHERE id = %s", (id,))
         conn.commit()
         return jsonify({"durum": "ok"})
     except Exception as e:
+        conn.rollback()
         return jsonify({"hata": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+# Şahıs Güncelle
+@musteri_bp.route("/musteri/guncelle/<int:id>", methods=["POST"])
+def musteri_guncelle(id):
+    data = request.json
+    conn, cursor = get_conn()
+    try:
+        cursor.execute("""
+            UPDATE musteri
+            SET ad = %s, soyad = %s, telefon = %s
+            WHERE id = %s
+        """, (data["ad"], data["soyad"], data["telefon"], id))
+        conn.commit()
+        return jsonify({"durum": "ok"})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"hata": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+# Kurum Güncelle
+@musteri_bp.route("/kurum/guncelle/<int:id>", methods=["POST"])
+def kurum_guncelle(id):
+    data = request.json
+    conn, cursor = get_conn()
+    try:
+        cursor.execute("""
+            UPDATE kurum
+            SET ad = %s, telefon = %s, adres = %s, "Yetkili Ad" = %s, "Yetkili Soyad" = %s
+            WHERE id = %s
+        """, (data["ad"], data["telefon"], data["adres"], data["yetkili_ad"], data["yetkili_soyad"], id))
+        conn.commit()
+        return jsonify({"durum": "ok"})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"hata": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
 
