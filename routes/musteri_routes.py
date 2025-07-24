@@ -152,7 +152,8 @@ def musterileri_detayli_getir(tip):
 # ─────────────── ŞAHIS SİL ───────────────
 @musteri_bp.route("/musteri/sil/<int:id>", methods=["DELETE"])
 def musteri_sil(id):
-    conn, cursor = get_conn()
+    conn = get_conn()
+    cursor = conn.cursor()
     try:
         cursor.execute("DELETE FROM musteri WHERE id = %s", (id,))
         conn.commit()
@@ -168,7 +169,8 @@ def musteri_sil(id):
 # ─────────────── KURUM SİL ───────────────
 @musteri_bp.route("/kurum/sil/<int:id>", methods=["DELETE"])
 def kurum_sil(id):
-    conn, cursor = get_conn()
+    conn = get_conn()
+    cursor = conn.cursor()
     try:
         cursor.execute("DELETE FROM kurum WHERE id = %s", (id,))
         conn.commit()
@@ -185,7 +187,8 @@ def kurum_sil(id):
 @musteri_bp.route("/musteri/guncelle/<int:id>", methods=["POST"])
 def musteri_guncelle(id):
     data = request.json
-    conn, cursor = get_conn()
+    conn = get_conn()
+    cursor = conn.cursor()
     try:
         cursor.execute("""
             UPDATE musteri
@@ -206,7 +209,8 @@ def musteri_guncelle(id):
 @musteri_bp.route("/kurum/guncelle/<int:id>", methods=["POST"])
 def kurum_guncelle(id):
     data = request.json
-    conn, cursor = get_conn()
+    conn = get_conn()
+    cursor = conn.cursor()
     try:
         cursor.execute("""
             UPDATE kurum
