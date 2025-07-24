@@ -199,38 +199,38 @@ def arac_detay(id):
 @arac_bp.route("/arac/guncelle/<int:arac_id>", methods=["POST"])
 def arac_guncelle(arac_id):
     try:
-        data = request.form
+        data = request.get_json()
+        plaka = data.get("plaka")
+        marka = data.get("marka")
+        model = data.get("model")
+        model_yili = data.get("model_yili")
+        motor = data.get("motor")
+        kw = data.get("kw")
+        km = data.get("km")
+        yakit_cinsi = data.get("yakit_cinsi")
+        sasi_no = data.get("sasi_no")
+        yakit_durumu = data.get("yakit_durumu")
+
         with get_conn() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    UPDATE arac SET
-                        plaka = %s,
+                    UPDATE arac
+                    SET plaka = %s,
+                        marka = %s,
                         model = %s,
+                        model_yili = %s,
                         motor = %s,
                         kw = %s,
-                        model_yili = %s,
-                        sasi_no = %s,
+                        km = %s,
                         yakit_cinsi = %s,
-                        yakit_durumu = %s,
-                        km = %s
+                        sasi_no = %s,
+                        yakit_durumu = %s
                     WHERE id = %s
                 """, (
-                    data.get("plaka"),
-                    data.get("model"),
-                    data.get("motor"),
-                    int(data.get("kw") or 0),
-                    int(data.get("yil") or 0),
-                    data.get("sasi_no"),
-                    data.get("yakit_cinsi"),
-                    int(data.get("yakit_durumu") or 0),
-                    int(data.get("km") or 0),
-                    arac_id
+                    plaka, marka, model, model_yili, motor, kw, km, yakit_cinsi, sasi_no, yakit_durumu, arac_id
                 ))
-                conn.commit()
-
-        return jsonify({"durum": "başarılı", "mesaj": "Araç bilgileri güncellendi."})
-
+            conn.commit()
+        return jsonify({"durum": "basarili"}), 200
     except Exception as e:
-        traceback.print_exc()
+        import traceback; traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
-
