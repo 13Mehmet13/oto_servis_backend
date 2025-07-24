@@ -29,7 +29,9 @@ def arac_listele():
                             WHEN a.musteri_tipi = 'sahis' THEN mus.telefon
                             WHEN a.musteri_tipi = 'kurum' THEN k.telefon
                             ELSE ''
-                        END AS musteri_telefon
+                        END AS musteri_telefon,
+                        a.motor,
+                        a.kw
                     FROM arac a
                     LEFT JOIN marka m ON a.marka_id = m.id
                     LEFT JOIN musteri mus ON a.musteri_id = mus.id AND a.musteri_tipi = 'sahis'
@@ -49,12 +51,16 @@ def arac_listele():
                         "sasi_no": row[6],
                         "marka": row[7],
                         "musteri_adi": row[8],
-                        "musteri_telefon": row[9]
+                        "musteri_telefon": row[9],
+                        "motor": row[10],
+                        "kw": row[11]
                     })
                 return jsonify(araclar), 200
     except Exception as e:
+        import traceback
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
 
 # ✅ Marka listesini getir
 @arac_bp.route("/arac/markalar", methods=["GET"])
