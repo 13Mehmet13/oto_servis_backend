@@ -149,12 +149,6 @@ def musterileri_detayli_getir(tip):
     except Exception as e:
         return jsonify({"hata": str(e)}), 500
 
-# Şahıs Sil
-from flask import Blueprint, request, jsonify
-from db import get_conn
-
-musteri_bp = Blueprint("musteri_bp", __name__)
-
 # ─────────────── ŞAHIS SİL ───────────────
 @musteri_bp.route("/musteri/sil/<int:id>", methods=["DELETE"])
 def musteri_sil(id):
