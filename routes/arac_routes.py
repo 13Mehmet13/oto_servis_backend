@@ -77,7 +77,6 @@ def get_markalar():
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
 
 # ✅ Yeni araç ekle
-@arac_bp.route("/arac/ekle", methods=["POST"])
 def arac_ekle():
     try:
         plaka = request.form["plaka"]
@@ -85,7 +84,14 @@ def arac_ekle():
         motor = request.form.get("motor", "")
         kw = int(request.form.get("kw", 0) or 0)
         musteri_id = int(request.form["musteri_id"])
-        musteri_tipi = request.form.get("musteri_tipi", "sahis")
+
+        # ✅ musteri_tipi düzeltildi (şahıs yerine sahis yapılır)
+        musteri_tipi = request.form.get("musteri_tipi", "sahis").strip().lower()
+        if musteri_tipi == "şahıs":
+            musteri_tipi = "sahis"
+        elif musteri_tipi != "kurum":
+            musteri_tipi = "sahis"  # sadece "kurum" ve "sahis" kabul edilir
+
         km = int(request.form.get("km", 0) or 0)
         yakit_durumu = int(request.form.get("yakit_durumu", 0) or 0)
         yakit_cinsi = request.form.get("yakit_cinsi", "")
@@ -114,6 +120,7 @@ def arac_ekle():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
 
 # ✅ Marka detayı
 @arac_bp.route("/marka/<int:id>", methods=["GET"])
