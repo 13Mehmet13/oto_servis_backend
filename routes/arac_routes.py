@@ -195,11 +195,6 @@ def arac_detay(id):
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
 
-from flask import Blueprint, request, jsonify
-from db import get_conn
-import traceback
-
-arac_bp = Blueprint("arac", __name__)
 
 @arac_bp.route("/arac/guncelle/<int:arac_id>", methods=["POST"])
 def arac_guncelle(arac_id):
