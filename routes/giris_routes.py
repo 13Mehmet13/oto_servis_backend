@@ -27,20 +27,17 @@ def giris():
         if not check_password_hash(user[1], sifre):
             return jsonify({"durum": "hata", "mesaj": "Şifre yanlış."}), 401
 
-        if not user[3]:  # aktif değilse
-            return jsonify({
-                "durum": "hata",
-                "mesaj": "Hesabınız henüz aktif değil. Lütfen admin onayını bekleyin."
-            }), 403
+        if not user[3]:
+            return jsonify({"durum": "hata", "mesaj": "Hesabınız aktif değil."}), 403
 
-        # Sahte token üretelim (gerçekte JWT önerilir)
-        fake_token = f"fake-token-{user[0]}"
+        # Sahte bir token üretelim
+        fake_token = secrets.token_hex(16)
 
         return jsonify({
             "durum": "basarili",
-            "token": fake_token,
+            "kullanici_id": user[0],
             "rol": user[2],
-            "kullanici_id": user[0]
+            "token": fake_token   # 🔴 Flutter bunu bekliyor!
         })
 
     except Exception as e:
