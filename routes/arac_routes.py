@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
-import traceback
 from db import get_conn
+import traceback
 
 arac_bp = Blueprint("arac", __name__)
 
@@ -49,7 +49,7 @@ def arac_listele():
                         "sasi_no": row[6],
                         "marka": row[7],
                         "musteri_adi": row[8],
-                        "musteri_telefon": row[9],
+                        "musteri_telefon": row[9]
                     })
                 return jsonify(araclar), 200
     except Exception as e:
@@ -77,29 +77,15 @@ def arac_ekle():
         plaka = request.form["plaka"]
         model = request.form["model"]
         motor = request.form.get("motor", "")
-        kw_raw = request.form.get("kw")
-        kw = int(kw_raw) if kw_raw and kw_raw.isdigit() else None
-
+        kw = int(request.form.get("kw", 0) or 0)
         musteri_id = int(request.form["musteri_id"])
-        
-        # 🔧 Müşteri tipi düzeltme
-        musteri_tipi_raw = request.form.get("musteri_tipi", "sahis").strip().lower().replace("ş", "s")
-        musteri_tipi = "kurum" if musteri_tipi_raw == "kurum" else "sahis"
-
-        km_raw = request.form.get("km")
-        km = int(km_raw) if km_raw and km_raw.isdigit() else None
-
-        yakit_durumu_raw = request.form.get("yakit_durumu")
-        yakit_durumu = int(yakit_durumu_raw) if yakit_durumu_raw and yakit_durumu_raw.isdigit() else None
-
+        musteri_tipi = request.form.get("musteri_tipi", "sahis")
+        km = int(request.form.get("km", 0) or 0)
+        yakit_durumu = int(request.form.get("yakit_durumu", 0) or 0)
         yakit_cinsi = request.form.get("yakit_cinsi", "")
         sasi_no = request.form.get("sasi_no", "")
-
-        marka_id_raw = request.form.get("marka_id")
-        marka_id = int(marka_id_raw) if marka_id_raw and marka_id_raw.isdigit() else None
-
-        model_yili_raw = request.form.get("model_yili")
-        model_yili = int(model_yili_raw) if model_yili_raw and model_yili_raw.isdigit() else None
+        marka_id = int(request.form.get("marka_id", 0) or 0)
+        model_yili = int(request.form.get("model_yili", 0) or 0)
 
         with get_conn() as conn:
             with conn.cursor() as cursor:
@@ -117,14 +103,13 @@ def arac_ekle():
                     )
                 )
                 conn.commit()
-
         return jsonify({"durum": "başarılı", "mesaj": "Araç eklendi."}), 200
 
     except Exception as e:
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
 
-
+# ✅ Marka detayı
 @arac_bp.route("/marka/<int:id>", methods=["GET"])
 def marka_detay(id):
     try:
@@ -138,6 +123,7 @@ def marka_detay(id):
     except Exception as e:
         return jsonify({"hata": str(e)}), 500
 
+# ✅ Araç detayı
 @arac_bp.route("/arac/<int:id>", methods=["GET"])
 def arac_detay(id):
     try:
@@ -174,7 +160,6 @@ def arac_detay(id):
                 row = cursor.fetchone()
                 if not row:
                     return jsonify({"durum": "hata", "mesaj": "Araç bulunamadı"}), 404
-
                 arac = {
                     "id": row[0],
                     "plaka": row[1],
@@ -187,14 +172,12 @@ def arac_detay(id):
                     "sasi_no": row[8],
                     "marka": row[9],
                     "musteri_adi": row[10],
-                    "musteri_telefon": row[11],
+                    "musteri_telefon": row[11]
                 }
                 return jsonify(arac), 200
-
     except Exception as e:
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
-
 @arac_bp.route("/arac/guncelle/<int:arac_id>", methods=["POST"])
 def arac_guncelle(arac_id):
     try:
