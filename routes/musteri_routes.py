@@ -148,3 +148,52 @@ def musterileri_detayli_getir(tip):
 
     except Exception as e:
         return jsonify({"hata": str(e)}), 500
+
+# ───────────── ŞAHIS MÜŞTERİLERİ ───────────── #
+
+@musteri_bp.route("/musteriler/sahis", methods=["GET"])
+def get_sahis_musteriler():
+    cursor.execute("SELECT * FROM musteri ORDER BY ad ASC")
+    rows = cursor.fetchall()
+    cols = [desc[0] for desc in cursor.description]
+    return jsonify([dict(zip(cols, row)) for row in rows])
+
+@musteri_bp.route("/musteriler/sahis/<int:id>", methods=["POST"])
+def update_sahis_musteri(id):
+    data = request.json
+    cursor.execute("""
+        UPDATE musteri SET ad=%s, soyad=%s, telefon=%s, adres=%s WHERE id=%s
+    """, (data.get("ad"), data.get("soyad"), data.get("telefon"), data.get("adres"), id))
+    conn.commit()
+    return jsonify({"durum": "ok"})
+
+@musteri_bp.route("/musteriler/sahis/<int:id>/sil", methods=["POST"])
+def delete_sahis_musteri(id):
+    cursor.execute("DELETE FROM musteri WHERE id=%s", (id,))
+    conn.commit()
+    return jsonify({"durum": "silindi"})
+
+# ───────────── KURUM MÜŞTERİLERİ ───────────── #
+
+@musteri_bp.route("/musteriler/kurum", methods=["GET"])
+def get_kurum_musteriler():
+    cursor.execute("SELECT * FROM kurum ORDER BY unvan ASC")
+    rows = cursor.fetchall()
+    cols = [desc[0] for desc in cursor.description]
+    return jsonify([dict(zip(cols, row)) for row in rows])
+
+@musteri_bp.route("/musteriler/kurum/<int:id>", methods=["POST"])
+def update_kurum_musteri(id):
+    data = request.json
+    cursor.execute("""
+        UPDATE kurum SET unvan=%s, yetkili_ad=%s, yetkili_soyad=%s, telefon=%s, adres=%s WHERE id=%s
+    """, (data.get("unvan"), data.get("yetkili_ad"), data.get("yetkili_soyad"), data.get("telefon"), data.get("adres"), id))
+    conn.commit()
+    return jsonify({"durum": "ok"})
+
+@musteri_bp.route("/musteriler/kurum/<int:id>/sil", methods=["POST"])
+def delete_kurum_musteri(id):
+    cursor.execute("DELETE FROM kurum WHERE id=%s", (id,))
+    conn.commit()
+    return jsonify({"durum": "silindi"})
+
