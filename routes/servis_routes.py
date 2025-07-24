@@ -180,103 +180,86 @@ def servis_sil(servis_id):
     except Exception as e:
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
     
-@servis_bp.route('/servis/devam-edenler', methods=['GET'])
-def devam_eden_servisleri_getir():
+@servis_bp.route("/servis/guncelle-parcalar/<int:servis_id>", methods=["POST"])
+def guncelle_parcalar_iscilik(servis_id):
     try:
-        conn = get_conn()
-        cursor = conn.cursor()
+        data = request.get_json()
+        iscilik = float(data.get("iscilik", 0))
+        parcalar = data.get("parcalar", [])
 
-        cursor.execute("""
-            SELECT s.id, s.arac_id, s.km, s.yakit, s.devam_ediyor, s.toplam_tutar,
-                   a.plaka, a.model, a.marka_id, m.ad AS marka_adi
-            FROM servis s
-            JOIN arac a ON s.arac_id = a.id
-            LEFT JOIN marka m ON a.marka_id = m.id
-            WHERE s.devam_ediyor = TRUE
-            ORDER BY s.id DESC
-        """)
-        rows = cursor.fetchall()
-        cursor.close()
-        conn.close()
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                # İşçilik güncelle
+                cursor.execute("""
+                    UPDATE servis
+                    SET iscilik_ucreti = %s
+                    WHERE id = %s
+                """, (iscilik, servis_id))
 
-        servisler = []
-        for row in rows:
-            servisler.append({
-                'servis_id': row[0],
-                'arac_id': row[1],
-                'km': row[2],
-                'yakit': row[3],
-                'devam_ediyor': row[4],
-                'toplam_tutar': float(row[5]),
-                'plaka': row[6],
-                'model': row[7],
-                'marka_id': row[8],
-                'marka': row[9],
-            })
-        return jsonify(servisler)
+                # Güncellenmiş parça bilgilerini servis_parca tablosuna uygula
+                for parca in parcalar:
+                    if parca.get("manual"):  # sadece elle eklenenler
+                        parca_id = int(parca.get("id"))
+                        quantity = int(parca.get("quantity", 1))
+
+                        cursor.execute("""
+                            UPDATE servis_parca
+                            SET quantity = %s
+                            WHERE id = %s AND servis_id = %s
+                        """, (quantity, parca_id, servis_id))
+
+                # servis.parcalar_json alanını da güncelle
+                cursor.execute("""
+                    UPDATE servis
+                    SET parcalar_json = %s
+                    WHERE id = %s
+                """, (json.dumps(parcalar), servis_id))
+
+                conn.commit()
+                return jsonify({"durum": "basarili"}), 200
+
     except Exception as e:
-        print("❌ Devam eden servisler API hatası:", e)
-        return jsonify([]), 500
+        return jsonify({"durum": "hata", "mesaj": str(e)}), 500
 
-    
-@servis_bp.route('/servis/guncelle-devam', methods=['POST'])
-def servis_devam_durum_guncelle():
-    try:
-        data = request.json
-        servis_id = data.get("servis_id")
-        devam_ediyor = data.get("devam_ediyor", False)
-
-        conn = get_conn()
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            UPDATE servis SET devam_ediyor = %s WHERE id = %s
-        """, (devam_ediyor, servis_id))
-        conn.commit()
-        cursor.close()
-        conn.close()
-
-        return jsonify({'durum': 'ok'})
-    except Exception as e:
-        print("❌ Devam durumu güncelleme hatası:", e)
-        return jsonify({'durum': 'hata'}), 500
 
 @servis_bp.route('/servis/aktif', methods=['GET'])
 def aktif_servisler():
     try:
-        conn = get_conn()
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT s.id as servis_id, s.arac_id, s.km, s.yakit, s.devam_ediyor, s.toplam_tutar,
-                   a.plaka, a.model, a.marka_id, m.ad AS marka
-            FROM servis s
-            JOIN arac a ON s.arac_id = a.id
-            LEFT JOIN marka m ON a.marka_id = m.id
-            WHERE s.devam_ediyor = TRUE
-            ORDER BY s.id DESC
-        """)
-        rows = cursor.fetchall()
-        cursor.close()
-        conn.close()
-        return jsonify([
-            {
-                "servis_id": r[0],
-                "arac_id": r[1],
-                "km": r[2],
-                "yakit": r[3],
-                "devam_ediyor": r[4],
-                "toplam_tutar": float(r[5]),
-                "plaka": r[6],
-                "model": r[7],
-                "marka_id": r[8],
-                "marka": r[9],
-            }
-            for r in rows
-        ])
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT s.id as servis_id, s.arac_id, s.km, s.yakit, s.devam_ediyor, s.toplam_tutar,
+                           a.plaka, a.model, a.marka_id, m.ad AS marka
+                    FROM servis s
+                    JOIN arac a ON s.arac_id = a.id
+                    LEFT JOIN marka m ON a.marka_id = m.id
+                    WHERE s.devam_ediyor = TRUE
+                    ORDER BY s.id DESC
+                """)
+                rows = cursor.fetchall()
+
+                servisler = [
+                    {
+                        "servis_id": r[0],
+                        "arac_id": r[1],
+                        "km": r[2],
+                        "yakit": r[3],
+                        "devam_ediyor": r[4],
+                        "toplam_tutar": float(r[5]),
+                        "plaka": r[6],
+                        "model": r[7],
+                        "marka_id": r[8],
+                        "marka": r[9],
+                    }
+                    for r in rows
+                ]
+
+                return jsonify(servisler), 200
+
     except Exception as e:
         print("❌ Aktif servis API hatası:", e)
-        return jsonify([]), 500
-    
+        return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
 @servis_bp.route("/servis/pdf/indir", methods=["GET"])
 def indir_servis_pdf():
     try:
