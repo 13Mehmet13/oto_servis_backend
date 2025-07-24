@@ -2,6 +2,8 @@ from flask import Blueprint, request, jsonify, session
 from werkzeug.security import generate_password_hash, check_password_hash
 from db import get_conn  # ✅ sadece get_conn fonksiyonu import edilecek
 import traceback
+import secrets
+
 
 giris_bp = Blueprint("giris", __name__)
 
