@@ -55,7 +55,7 @@ def musteri_ekle():
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
 
 
-# ✅ Müşteri Listeleme (tip kontrolü ile)
+# ✅ Müşteri Listeleme (detaylı hale getirildi)
 @musteri_bp.route("/musteriler", methods=["GET"])
 def musteri_listesi():
     try:
@@ -65,27 +65,45 @@ def musteri_listesi():
         with get_conn() as conn:
             with conn.cursor() as cursor:
                 if sahiplik == "sahis":
-                    cursor.execute("SELECT id, ad || ' ' || soyad AS ad FROM musteri ORDER BY id DESC")
+                    cursor.execute("""
+                        SELECT id, ad, soyad, telefon FROM musteri ORDER BY id DESC
+                    """)
+                    rows = cursor.fetchall()
+                    musteriler = [{
+                        "id": r[0],
+                        "ad": r[1],
+                        "soyad": r[2],
+                        "telefon": r[3]
+                    } for r in rows]
+
                 elif sahiplik == "kurum":
-                    cursor.execute("SELECT id, ad AS ad FROM kurum ORDER BY id DESC")
+                    cursor.execute("""
+                        SELECT id, ad, adres, telefon, "Yetkili Ad", "Yetkili Soyad" FROM kurum ORDER BY id DESC
+                    """)
+                    rows = cursor.fetchall()
+                    musteriler = [{
+                        "id": r[0],
+                        "unvan": r[1],
+                        "adres": r[2],
+                        "telefon": r[3],
+                        "yetkili_ad": r[4],
+                        "yetkili_soyad": r[5]
+                    } for r in rows]
+
                 else:
                     return jsonify({
                         "durum": "hata",
                         "mesaj": f"Geçersiz sahiplik tipi: {sahiplik_raw}"
                     }), 400
 
-                rows = cursor.fetchall()
-                musteriler = [{"id": row[0], "ad": row[1]} for row in rows]
                 return jsonify(musteriler), 200
 
     except Exception as e:
         traceback.print_exc()
-        return jsonify({
-            "durum": "hata",
-            "mesaj": "Sunucu hatası: " + str(e)
-        }), 500
+        return jsonify({"durum": "hata", "mesaj": "Sunucu hatası: " + str(e)}), 500
 
-# 🔧 Detaylı Listeleme (servis ekranındaki gibi tam bilgilerle)
+
+# 🔧 Detaylı Listeleme (ayrıca kullanmak istersen)
 @musteri_bp.route("/musteriler/<string:tip>", methods=["GET"])
 def musterileri_detayli_getir(tip):
     try:
