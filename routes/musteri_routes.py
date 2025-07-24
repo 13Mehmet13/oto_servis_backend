@@ -152,7 +152,7 @@ def musterileri_detayli_getir(tip):
 # ────────────────────────────────────────────────
 # 🔄 Şahıs Müşteri Güncelle
 # ────────────────────────────────────────────────
-@app.route("/musteri/guncelle/<int:id>", methods=["POST"])
+@musteri_bp.route("/musteri/guncelle/<int:id>", methods=["POST"])
 def update_musteri(id):
     try:
         data = request.get_json()
@@ -169,7 +169,7 @@ def update_musteri(id):
 # ────────────────────────────────────────────────
 # 🔄 Kurum Müşteri Güncelle
 # ────────────────────────────────────────────────
-@app.route("/kurum/guncelle/<int:id>", methods=["POST"])
+@musteri_bp.route("/kurum/guncelle/<int:id>", methods=["POST"])
 def update_kurum(id):
     try:
         data = request.get_json()
@@ -193,7 +193,7 @@ def update_kurum(id):
 # ────────────────────────────────────────────────
 # ❌ Şahıs Müşteri Sil
 # ────────────────────────────────────────────────
-@app.route("/musteri/sil/<int:id>", methods=["DELETE"])
+@musteri_bp.route("/musteri/sil/<int:id>", methods=["DELETE"])
 def delete_musteri(id):
     try:
         cursor.execute("DELETE FROM musteri WHERE id = %s", (id,))
@@ -206,7 +206,7 @@ def delete_musteri(id):
 # ────────────────────────────────────────────────
 # ❌ Kurum Müşteri Sil
 # ────────────────────────────────────────────────
-@app.route("/kurum/sil/<int:id>", methods=["DELETE"])
+@musteri_bp.route("/kurum/sil/<int:id>", methods=["DELETE"])
 def delete_kurum(id):
     try:
         cursor.execute("DELETE FROM kurum WHERE id = %s", (id,))
