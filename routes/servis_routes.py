@@ -182,32 +182,31 @@ def servis_sil(servis_id):
     
 @servis_bp.route("/servis/guncelle/<int:servis_id>", methods=["POST"])
 def servis_guncelle(servis_id):
-    try: # varsa en üstte import edilmiş olmalı
+    try:
         data = request.get_json()
         parcalar = data.get("parcalar", [])
         iscilik_ucreti = data.get("iscilik_ucreti", 0)
+        toplam_tutar = data.get("toplam_tutar", 0)  # <-- EKLE
 
         with get_conn() as conn:
             with conn.cursor() as cursor:
-                # 1. Servis varsa güncelle
                 cursor.execute("SELECT id FROM servis WHERE id = %s", (servis_id,))
                 if cursor.fetchone() is None:
                     return jsonify({"durum": "hata", "mesaj": "Servis bulunamadı"}), 404
 
-                # 2. Güncelleme
                 cursor.execute("""
                     UPDATE servis
                     SET iscilik_ucreti = %s,
-                        parcalar_json = %s
+                        parcalar_json = %s,
+                        toplam_tutar = %s         -- <-- EKLE
                     WHERE id = %s
-                """, (iscilik_ucreti, json.dumps(parcalar), servis_id))
+                """, (iscilik_ucreti, json.dumps(parcalar), toplam_tutar, servis_id))  # <-- EKLE
 
             conn.commit()
         return jsonify({"durum": "basarili"})
     except Exception as e:
         print("❌ Servis güncelleme hatası:", str(e))
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
-
 
 @servis_bp.route('/servis/aktif', methods=['GET'])
 def aktif_servisler():
