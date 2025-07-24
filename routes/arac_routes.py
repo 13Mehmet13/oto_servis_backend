@@ -77,6 +77,7 @@ def get_markalar():
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
 
 # ✅ Yeni araç ekle
+@arac_bp.route("/arac/ekle", methods=["POST"])
 def arac_ekle():
     try:
         plaka = request.form["plaka"]
