@@ -149,11 +149,6 @@ def musterileri_detayli_getir(tip):
     except Exception as e:
         return jsonify({"hata": str(e)}), 500
 
-from flask import Blueprint, request, jsonify
-from db import get_conn
-
-musteri_bp = Blueprint("musteri", __name__)
-
 # ────────────────────────────────────────────────
 # 🔄 Şahıs Müşteri Güncelle
 # ────────────────────────────────────────────────
