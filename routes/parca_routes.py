@@ -174,3 +174,29 @@ def parca_stok_azalt():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
+# ▶ Stokta parça listele (stok > 0 olanlar)
+@parca_bp.route("/parcalar", methods=["GET"])
+def stoktaki_parcalar():
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT id, ad, stok, satis_fiyati
+                    FROM parca
+                    WHERE stok > 0
+                    ORDER BY id DESC
+                """)
+                rows = cursor.fetchall()
+                return jsonify([
+                    {
+                        "id": r[0],
+                        "ad": r[1],
+                        "stok": r[2],
+                        "satis_fiyati": float(r[3] or 0)
+                    } for r in rows
+                ]), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
