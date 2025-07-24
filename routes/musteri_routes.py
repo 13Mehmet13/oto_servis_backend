@@ -150,6 +150,12 @@ def musterileri_detayli_getir(tip):
         return jsonify({"hata": str(e)}), 500
 
 # Şahıs Sil
+from flask import Blueprint, request, jsonify
+from db import get_conn
+
+musteri_bp = Blueprint("musteri_bp", __name__)
+
+# ─────────────── ŞAHIS SİL ───────────────
 @musteri_bp.route("/musteri/sil/<int:id>", methods=["DELETE"])
 def musteri_sil(id):
     conn, cursor = get_conn()
@@ -164,7 +170,8 @@ def musteri_sil(id):
         cursor.close()
         conn.close()
 
-# Kurum Sil
+
+# ─────────────── KURUM SİL ───────────────
 @musteri_bp.route("/kurum/sil/<int:id>", methods=["DELETE"])
 def kurum_sil(id):
     conn, cursor = get_conn()
@@ -179,7 +186,8 @@ def kurum_sil(id):
         cursor.close()
         conn.close()
 
-# Şahıs Güncelle
+
+# ─────────────── ŞAHIS GÜNCELLE ───────────────
 @musteri_bp.route("/musteri/guncelle/<int:id>", methods=["POST"])
 def musteri_guncelle(id):
     data = request.json
@@ -199,7 +207,8 @@ def musteri_guncelle(id):
         cursor.close()
         conn.close()
 
-# Kurum Güncelle
+
+# ─────────────── KURUM GÜNCELLE ───────────────
 @musteri_bp.route("/kurum/guncelle/<int:id>", methods=["POST"])
 def kurum_guncelle(id):
     data = request.json
@@ -218,4 +227,3 @@ def kurum_guncelle(id):
     finally:
         cursor.close()
         conn.close()
-
