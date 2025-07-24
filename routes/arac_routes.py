@@ -195,3 +195,43 @@ def arac_detay(id):
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
 
+@arac_bp.route("/arac/guncelle/<int:arac_id>", methods=["POST"])
+def arac_guncelle(arac_id):
+    try:
+        data = request.get_json()
+        plaka = data.get("plaka")
+        marka_id = data.get("marka_id")   # ✅ burada düzeltildi
+        model = data.get("model")
+        model_yili = data.get("model_yili")
+        motor = data.get("motor")
+        kw = data.get("kw")
+        km = data.get("km")
+        yakit_cinsi = data.get("yakit_cinsi")
+        sasi_no = data.get("sasi_no")
+        yakit_durumu = data.get("yakit_durumu")
+
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    UPDATE arac
+                    SET plaka = %s,
+                        marka_id = %s,
+                        model = %s,
+                        model_yili = %s,
+                        motor = %s,
+                        kw = %s,
+                        km = %s,
+                        yakit_cinsi = %s,
+                        sasi_no = %s,
+                        yakit_durumu = %s
+                    WHERE id = %s
+                """, (
+                    plaka, marka_id, model, model_yili, motor, kw, km, yakit_cinsi, sasi_no, yakit_durumu, arac_id
+                ))
+            conn.commit()
+        return jsonify({"durum": "basarili"}), 200
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
+
