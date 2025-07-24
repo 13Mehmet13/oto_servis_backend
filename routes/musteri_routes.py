@@ -84,3 +84,49 @@ def musteri_listesi():
             "durum": "hata",
             "mesaj": "Sunucu hatası: " + str(e)
         }), 500
+
+# 🔧 Detaylı Listeleme (servis ekranındaki gibi tam bilgilerle)
+@musteri_bp.route("/musteriler/<string:tip>", methods=["GET"])
+def musterileri_detayli_getir(tip):
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                if tip.lower() == 'sahis':
+                    cursor.execute("""
+                        SELECT id, ad, soyad, telefon
+                        FROM musteri
+                        ORDER BY id DESC
+                    """)
+                    rows = cursor.fetchall()
+                    return jsonify([
+                        {
+                            "id": r[0],
+                            "ad": r[1],
+                            "soyad": r[2],
+                            "telefon": r[3]
+                        } for r in rows
+                    ])
+
+                elif tip.lower() == 'kurum':
+                    cursor.execute("""
+                        SELECT id, ad, adres, telefon, "Yetkili Ad", "Yetkili Soyad"
+                        FROM kurum
+                        ORDER BY id DESC
+                    """)
+                    rows = cursor.fetchall()
+                    return jsonify([
+                        {
+                            "id": r[0],
+                            "unvan": r[1],
+                            "adres": r[2],
+                            "telefon": r[3],
+                            "yetkili_ad": r[4],
+                            "yetkili_soyad": r[5],
+                        } for r in rows
+                    ])
+
+                else:
+                    return jsonify({"hata": "Geçersiz müşteri tipi."}), 400
+
+    except Exception as e:
+        return jsonify({"hata": str(e)}), 500
