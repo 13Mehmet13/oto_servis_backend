@@ -231,4 +231,16 @@ def arac_guncelle(arac_id):
         import traceback; traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
 
+@arac_bp.route("/arac/sil/<int:id>", methods=["DELETE"])
+def arac_sil(id):
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("DELETE FROM arac WHERE id = %s", (id,))
+                conn.commit()
+        return jsonify({"durum": "ok", "mesaj": "Araç silindi."})
+    except Exception as e:
+        return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
+
 
