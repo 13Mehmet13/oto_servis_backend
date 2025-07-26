@@ -259,19 +259,17 @@ def eski_hareketleri_sil(cari_id):
 @cari_bp.route("/kasa/ozet", methods=["GET"])
 def kasa_ozet():
     try:
-        conn, cursor = get_conn()
-        cursor.execute("""
-            SELECT
-                SUM(CASE WHEN tur = 'alacak' THEN tutar ELSE 0 END) AS toplam_alacak,
-                SUM(CASE WHEN tur = 'borc' THEN tutar ELSE 0 END) AS toplam_borc
-            FROM cari_hareket
-        """)
-        row = cursor.fetchone()
-        conn.close()
+        cursor.execute("SELECT SUM(tutar) FROM cari_hareket WHERE tur = 'alacak'")
+        toplam_alacak = cursor.fetchone()[0] or 0
+
+        cursor.execute("SELECT SUM(tutar) FROM cari_hareket WHERE tur = 'borc'")
+        toplam_borc = cursor.fetchone()[0] or 0
+
         return jsonify({
-            "toplam_alacak": float(row[0] or 0),
-            "toplam_borc": float(row[1] or 0)
+            "toplam_alacak": float(toplam_alacak),
+            "toplam_borc": float(toplam_borc)
         })
     except Exception as e:
+        print("❌ Kasa özeti hatası:", e)
         return jsonify({"hata": str(e)}), 500
 
