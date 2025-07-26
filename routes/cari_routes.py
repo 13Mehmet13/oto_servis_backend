@@ -254,3 +254,24 @@ def eski_hareketleri_sil(cari_id):
     except Exception as e:
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
+# kasa_routes.py gibi bir dosyada olabilir
+@cari_bp.route("/kasa/ozet", methods=["GET"])
+def kasa_ozet():
+    try:
+        conn, cursor = get_conn()
+        cursor.execute("""
+            SELECT
+                SUM(CASE WHEN tur = 'alacak' THEN tutar ELSE 0 END) AS toplam_alacak,
+                SUM(CASE WHEN tur = 'borc' THEN tutar ELSE 0 END) AS toplam_borc
+            FROM cari_hareket
+        """)
+        row = cursor.fetchone()
+        conn.close()
+        return jsonify({
+            "toplam_alacak": float(row[0] or 0),
+            "toplam_borc": float(row[1] or 0)
+        })
+    except Exception as e:
+        return jsonify({"hata": str(e)}), 500
+
