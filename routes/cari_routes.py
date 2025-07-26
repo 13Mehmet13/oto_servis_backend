@@ -305,4 +305,24 @@ def satislari_getir():
         traceback.print_exc()
         return jsonify({"hata": str(e)}), 500
 
+@cari_bp.route("/cari/satis", methods=["POST"])
+def cari_satis_ekle():
+    try:
+        data = request.json
+        cari_id = data.get("cari_id")
+        tutar = data.get("tutar")
+        parca_listesi = data.get("parca_listesi_json", [])
+        aciklama = data.get("aciklama", "Satış işlemi")
+
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    INSERT INTO cari_hareket (cari_id, tutar, tur, aciklama, parca_listesi_json)
+                    VALUES (%s, %s, 'alacak', %s, %s)
+                """, (cari_id, tutar, aciklama, json.dumps(parca_listesi)))
+                return jsonify({"durum": "ok"}), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
 
