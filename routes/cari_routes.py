@@ -98,7 +98,7 @@ def cari_hareketleri_getir(cari_id):
         with get_conn() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    SELECT id, tarih, aciklama, tutar, tur, odeme_tipi
+                    SELECT id, tarih, aciklama, tutar, tur, odeme_tipi, parca_listesi_json
                     FROM cari_hareket
                     WHERE cari_id = %s
                     ORDER BY tarih DESC
@@ -111,12 +111,14 @@ def cari_hareketleri_getir(cari_id):
                         "aciklama": r[2],
                         "tutar": float(r[3]),
                         "tur": r[4],
-                        "odeme_tipi": r[5]
+                        "odeme_tipi": r[5],
+                        "parca_listesi_json": r[6]  # ✅ Eksik alan eklendi
                     } for r in rows
                 ]), 200
     except Exception as e:
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
 
 # ─────────────────────  BAKİYE HESABI  ─────────────────────
 @cari_bp.route("/cari/<int:cari_id>/bakiye", methods=["GET"])
