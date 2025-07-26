@@ -276,3 +276,33 @@ def kasa_ozet():
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
 
+@cari_bp.route("/satislar", methods=["GET"])
+def satislari_getir():
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT ch.id, ch.tarih, ch.tutar, ch.aciklama, c.ad, c.telefon
+                    FROM cari_hareket ch
+                    JOIN cariler c ON ch.cari_id = c.id
+                    WHERE ch.tur = 'alacak' AND c.tip = 'musteri'
+                    ORDER BY ch.tarih DESC
+                """)
+                rows = cursor.fetchall()
+                satislar = [
+                    {
+                        "id": r[0],
+                        "tarih": r[1].strftime("%Y-%m-%d %H:%M"),
+                        "tutar": float(r[2]),
+                        "aciklama": r[3],
+                        "musteri_ad": r[4],
+                        "telefon": r[5],
+                    }
+                    for r in rows
+                ]
+                return jsonify(satislar), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"hata": str(e)}), 500
+
+
