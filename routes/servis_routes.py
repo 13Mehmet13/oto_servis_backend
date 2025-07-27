@@ -208,43 +208,6 @@ def servis_guncelle(servis_id):
         print("❌ Servis güncelleme hatası:", str(e))
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
 
-@servis_bp.route('/servis/aktif', methods=['GET'])
-def aktif_servisler():
-    try:
-        with get_conn() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute("""
-                    SELECT s.id as servis_id, s.arac_id, s.km, s.yakit, s.devam_ediyor, s.toplam_tutar,
-                           a.plaka, a.model, a.marka_id, m.ad AS marka
-                    FROM servis s
-                    JOIN arac a ON s.arac_id = a.id
-                    LEFT JOIN marka m ON a.marka_id = m.id
-                    WHERE s.devam_ediyor = TRUE
-                    ORDER BY s.id DESC
-                """)
-                rows = cursor.fetchall()
-
-                servisler = [
-                    {
-                        "servis_id": r[0],
-                        "arac_id": r[1],
-                        "km": r[2],
-                        "yakit": r[3],
-                        "devam_ediyor": r[4],
-                        "toplam_tutar": float(r[5]),
-                        "plaka": r[6],
-                        "model": r[7],
-                        "marka_id": r[8],
-                        "marka": r[9],
-                    }
-                    for r in rows
-                ]
-
-                return jsonify(servisler), 200
-
-    except Exception as e:
-        print("❌ Aktif servis API hatası:", e)
-        return jsonify({"durum": "hata", "mesaj": str(e)}), 500
 
 @servis_bp.route("/servis/aktif", methods=["GET"])
 def servis_aktif():
