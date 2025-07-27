@@ -84,7 +84,7 @@ def cari_hareket_ekle():
         elif tur == "verecek":
             veri_turu = "borc"    # ben cariye borçlandım
         elif tur == "odemeal":
-            veri_turu = "borc"    # adam bana ödeme yaptı, borcu azaldı
+            veri_turu = "odemeal"    # adam bana ödeme yaptı, borcu azaldı
         elif tur == "odemeyap":
             veri_turu = "alacak"  # ben adama ödeme yaptım, benim borcum azaldı
 
