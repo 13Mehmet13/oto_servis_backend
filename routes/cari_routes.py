@@ -364,17 +364,15 @@ def kasa_hareketleri():
                         ch.cari_id,
                         c.tip AS cari_tip,
                         CASE
-                            WHEN c.tip = 'musteri' THEN (
-                                SELECT CONCAT(m.ad, ' ', m.soyad) FROM musteri m WHERE m.id = c.ref_id
-                            )
-                            WHEN c.tip = 'kurum' THEN (
-                                SELECT k.unvan FROM kurum k WHERE k.id = c.ref_id
-                            )
+                            WHEN c.tip = 'musteri' THEN CONCAT(m.ad, ' ', m.soyad)
+                            WHEN c.tip = 'kurum' THEN k.unvan
                             WHEN c.tip = 'parcaci' OR c.tip = 'usta' THEN c.ad
                             ELSE NULL
                         END AS cari_ad
                     FROM cari_hareket ch
                     LEFT JOIN cariler c ON ch.cari_id = c.id
+                    LEFT JOIN musteri m ON c.tip = 'musteri' AND ch.cari_id = m.id
+                    LEFT JOIN kurum k ON c.tip = 'kurum' AND ch.cari_id = k.id
                     ORDER BY ch.tarih DESC
                     LIMIT 100
                 """)
@@ -397,3 +395,4 @@ def kasa_hareketleri():
         print("❌ Kasa hareketleri hatası:", e)
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
