@@ -358,22 +358,23 @@ def kasa_hareketleri():
         with get_conn() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    SELECT
+                    SELECT 
                         ch.tarih, ch.aciklama, ch.tutar, ch.tur,
-                        ch.cari_id,
-                        c.tip AS cari_tip,
-                        CASE
-                            WHEN c.tip = 'parcaci' OR c.tip = 'usta' THEN c.ad
-                            WHEN c.tip = 'musteri' THEN (
-                                SELECT CONCAT(m.ad, ' ', m.soyad)
-                                FROM musteri m WHERE m.id = ch.cari_id
-                            )
-                            ELSE ''
+                        ch.cari_id, ch.cari_tipi,
+                        CASE 
+                            WHEN ch.cari_tipi = 'sahis' THEN m.ad || ' ' || m.soyad
+                            WHEN ch.cari_tipi = 'kurum' THEN k.unvan
+                            WHEN ch.cari_tipi = 'parcaci' THEN p.ad
+                            WHEN ch.cari_tipi = 'usta' THEN u.ad
+                            ELSE NULL
                         END AS cari_ad
                     FROM cari_hareket ch
-                    LEFT JOIN cariler c ON ch.cari_id = c.id
+                    LEFT JOIN musteri m ON ch.cari_tipi = 'sahis' AND ch.cari_id = m.id
+                    LEFT JOIN kurum k ON ch.cari_tipi = 'kurum' AND ch.cari_id = k.id
+                    LEFT JOIN cariler p ON ch.cari_tipi = 'parcaci' AND ch.cari_id = p.id
+                    LEFT JOIN cariler u ON ch.cari_tipi = 'usta' AND ch.cari_id = u.id
                     ORDER BY ch.tarih DESC
-                    LIMIT 100
+                    LIMIT 200
                 """)
                 rows = cursor.fetchall()
                 hareketler = []
@@ -383,14 +384,16 @@ def kasa_hareketleri():
                         "aciklama": row[1],
                         "tutar": float(row[2]),
                         "tur": row[3],
-                        "cari_id": row[4],
                         "cari": {
-                            "tipi": row[5],
-                            "ad": row[6]
+                            "id": row[4],
+                            "tip": row[5],
+                            "ad": row[6],
+                            "soyad": "",  # sadece sahis için dolu olacak
                         }
                     })
-                return jsonify(hareketler), 200
+                return jsonify(hareketler)
     except Exception as e:
         print("❌ Kasa hareketleri hatası:", e)
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
