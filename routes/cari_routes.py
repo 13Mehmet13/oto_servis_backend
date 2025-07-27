@@ -275,19 +275,19 @@ def kasa_ozet():
     try:
         with get_conn() as conn:
             with conn.cursor() as cursor:
-                # Alacak: alacak - odemeal
+                # Alacak - odemeal
                 cursor.execute("""
                     SELECT 
-                        COALESCE(SUM(CASE WHEN tur = 'alacak' THEN tutar ELSE 0 END), 0) -
-                        COALESCE(SUM(CASE WHEN tur = 'odemeal' THEN tutar ELSE 0 END), 0)
+                        COALESCE(SUM(CASE WHEN "tur" = 'alacak' THEN tutar ELSE 0 END), 0) -
+                        COALESCE(SUM(CASE WHEN "tur" = 'odemeal' THEN tutar ELSE 0 END), 0)
                 """)
                 toplam_alacak = cursor.fetchone()[0]
 
-                # Verecek: verecek - odemeyap
+                # Verecek - odemeyap
                 cursor.execute("""
                     SELECT 
-                        COALESCE(SUM(CASE WHEN tur = 'verecek' THEN tutar ELSE 0 END), 0) -
-                        COALESCE(SUM(CASE WHEN tur = 'odemeyap' THEN tutar ELSE 0 END), 0)
+                        COALESCE(SUM(CASE WHEN "tur" = 'verecek' THEN tutar ELSE 0 END), 0) -
+                        COALESCE(SUM(CASE WHEN "tur" = 'odemeyap' THEN tutar ELSE 0 END), 0)
                 """)
                 toplam_verecek = cursor.fetchone()[0]
 
@@ -299,6 +299,7 @@ def kasa_ozet():
         print("❌ Kasa özeti hatası:", e)
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
 
 
 @cari_bp.route("/satislar", methods=["GET"])
