@@ -369,17 +369,13 @@ def kasa_hareketleri():
                         ch.aciklama,
                         ch.tutar,
                         ch.tur,
+                        ch.odeme_tipi,
                         ch.cari_id,
-                        c.tip,
-                        CASE
-                            WHEN c.tip = 'musteri' THEN CONCAT(m.ad, ' ', m.soyad)
-                            WHEN c.tip = 'kurum' THEN k.ad
-                            ELSE c.ad
-                        END AS cari_ad
+                        c.ad AS cari_ad,
+                        c.tip AS cari_tip,
+                        c.telefon AS cari_telefon
                     FROM cari_hareket ch
                     LEFT JOIN cariler c ON ch.cari_id = c.id
-                    LEFT JOIN musteri m ON c.tip = 'musteri' AND c.id = m.id
-                    LEFT JOIN kurum k ON c.tip = 'kurum' AND c.id = k.id
                     ORDER BY ch.tarih DESC
                     LIMIT 100
                 """)
@@ -392,15 +388,18 @@ def kasa_hareketleri():
                         "aciklama": row[2],
                         "tutar": float(row[3]),
                         "tur": row[4],
-                        "cari_id": row[5],
+                        "odeme_tipi": row[5],
+                        "cari_id": row[6],
                         "cari": {
-                            "tip": row[6],     # ✅ MÜŞTERİ/PARÇACI/USTA buradan geliyor
-                            "ad": row[7]
-                        } if row[6] and row[7] else None
+                            "ad": row[7],
+                            "tip": row[8],  # cariler.tip (örn: parcaci, musteri, usta)
+                            "telefon": row[9]
+                        } if row[7] and row[8] else None
                     })
 
                 return jsonify(hareketler), 200
+
     except Exception as e:
-        print("❌ Kasa hareketleri hatası:", e)
+        print("❌ kasa_hareketleri hatası:", e)
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
