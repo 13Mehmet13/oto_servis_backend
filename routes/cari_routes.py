@@ -70,13 +70,16 @@ def cari_hareket_ekle():
     try:
         cari_id   = request.form.get("cari_id", type=int)
         tutar     = request.form.get("tutar", type=float)
-        tur       = request.form.get("tur")
+        tur       = request.form.get("tur")  # "alacak", "borc", "odeme"
         odeme_tip = request.form.get("odeme_tipi")
         aciklama  = request.form.get("aciklama", "")
         parca_js  = request.form.get("parca_listesi_json", "[]")
 
-        if not (cari_id and tutar and tur in ("borc", "alacak")):
-            return jsonify({"durum": "hata", "mesaj": "Gerekli alanlar eksik"}), 400
+        if not (cari_id and tutar and tur in ("borc", "alacak", "odeme")):
+            return jsonify({"durum": "hata", "mesaj": "Geçersiz veri"}), 400
+
+        # Eğer ödeme tipi 'odeme' ise, veritabanına "borç azaltıcı" kayıt olarak eklenir
+        veri_turu = "borc" if tur == "odeme" else tur
 
         with get_conn() as conn:
             with conn.cursor() as cursor:
@@ -84,9 +87,10 @@ def cari_hareket_ekle():
                     INSERT INTO cari_hareket
                     (cari_id, tarih, aciklama, tutar, tur, odeme_tipi, parca_listesi_json)
                     VALUES (%s, NOW(), %s, %s, %s, %s, %s)
-                """, (cari_id, aciklama, tutar, tur, odeme_tip, parca_js))
+                """, (cari_id, aciklama, tutar, veri_turu, odeme_tip, parca_js))
                 conn.commit()
                 return jsonify({"durum": "ok"}), 200
+
     except Exception as e:
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
