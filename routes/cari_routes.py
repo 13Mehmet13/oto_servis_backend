@@ -275,19 +275,21 @@ def kasa_ozet():
     try:
         with get_conn() as conn:
             with conn.cursor() as cursor:
-                # Alacak = alacak - odemeal
+                # Net Alacak: alacak - odemeal
                 cursor.execute("""
                     SELECT
-                        COALESCE(SUM(CASE WHEN tur = 'alacak' THEN tutar END), 0) -
-                        COALESCE(SUM(CASE WHEN tur = 'odemeal' THEN tutar END), 0)
+                        COALESCE(SUM(CASE WHEN tur = 'alacak' THEN tutar ELSE 0 END), 0) -
+                        COALESCE(SUM(CASE WHEN tur = 'odemeal' THEN tutar ELSE 0 END), 0)
+                    FROM cari_hareket
                 """)
                 net_alacak = cursor.fetchone()[0] or 0
 
-                # Verecek = verecek - odemeyap
+                # Net Verecek: verecek - odemeyap
                 cursor.execute("""
                     SELECT
-                        COALESCE(SUM(CASE WHEN tur = 'verecek' THEN tutar END), 0) -
-                        COALESCE(SUM(CASE WHEN tur = 'odemeyap' THEN tutar END), 0)
+                        COALESCE(SUM(CASE WHEN tur = 'verecek' THEN tutar ELSE 0 END), 0) -
+                        COALESCE(SUM(CASE WHEN tur = 'odemeyap' THEN tutar ELSE 0 END), 0)
+                    FROM cari_hareket
                 """)
                 net_verecek = cursor.fetchone()[0] or 0
 
@@ -299,7 +301,6 @@ def kasa_ozet():
         print("❌ Kasa özeti hatası:", e)
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
-
 
 
 
