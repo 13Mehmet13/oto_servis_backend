@@ -355,48 +355,58 @@ def cari_satis_ekle():
 @cari_bp.route("/kasa/hareketleri", methods=["GET"])
 def kasa_hareketleri():
     try:
-        cursor.execute("""
-            SELECT
-              ch.id,
-              ch.tarih,
-              ch.aciklama,
-              ch.tutar,
-              ch.tur,
-              ch.cari_id,
-              ch.cari_tipi,
-              CASE
-                WHEN ch.cari_tipi = 'sahis' THEN (
-                  SELECT row_to_json(m)
-                  FROM (
-                    SELECT 'sahis' AS tip, ad, soyad
-                    FROM musteri
-                    WHERE id = ch.cari_id
-                  ) m
-                )
-                WHEN ch.cari_tipi = 'kurum' THEN (
-                  SELECT row_to_json(k)
-                  FROM (
-                    SELECT 'kurum' AS tip, unvan AS ad
-                    FROM kurum
-                    WHERE id = ch.cari_id
-                  ) k
-                )
-                WHEN ch.cari_tipi = 'usta' THEN (
-                  SELECT row_to_json(u)
-                  FROM (
-                    SELECT 'usta' AS tip, ad, soyad
-                    FROM cariler
-                    WHERE id = ch.cari_id
-                  ) u
-                )
-                ELSE NULL
-              END AS cari
-            FROM cari_hareket ch
-            ORDER BY ch.tarih DESC;
-        """)
-        rows = cursor.fetchall()
-        colnames = [desc[0] for desc in cursor.description]
-        data = [dict(zip(colnames, row)) for row in rows]
-        return jsonify(data)
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT
+                        ch.tarih, ch.aciklama, ch.tutar, ch.tur,
+                        ch.cari_id, ch.cari_tipi,
+                        CASE
+                            WHEN ch.cari_tipi = 'sahis' THEN (
+                                SELECT row_to_json(m)
+                                FROM (
+                                    SELECT 'sahis' AS tipi, ad, soyad
+                                    FROM musteri
+                                    WHERE id = ch.cari_id
+                                ) m
+                            )
+                            WHEN ch.cari_tipi = 'kurum' THEN (
+                                SELECT row_to_json(k)
+                                FROM (
+                                    SELECT 'kurum' AS tipi, unvan, NULL AS soyad
+                                    FROM kurum
+                                    WHERE id = ch.cari_id
+                                ) k
+                            )
+                            WHEN ch.cari_tipi = 'usta' THEN (
+                                SELECT row_to_json(u)
+                                FROM (
+                                    SELECT 'usta' AS tipi, ad, soyad
+                                    FROM cariler
+                                    WHERE id = ch.cari_id
+                                ) u
+                            )
+                            ELSE NULL
+                        END AS cari
+                    FROM cari_hareket ch
+                    ORDER BY ch.tarih DESC
+                    LIMIT 100
+                """)
+                rows = cursor.fetchall()
+                colnames = [desc.name for desc in cursor.description]
+                hareketler = [dict(zip(colnames, row)) for row in rows]
+
+                # ISO format datetime dönüşümü
+                for h in hareketler:
+                    if isinstance(h["tarih"], (str, type(None))):
+                        continue
+                    h["tarih"] = h["tarih"].isoformat()
+                    if h["tutar"] is not None:
+                        h["tutar"] = float(h["tutar"])
+
+                return jsonify(hareketler), 200
+
     except Exception as e:
-        return jsonify({"hata": str(e)}), 500
+        print("❌ Kasa hareketleri hatası:", e)
+        traceback.print_exc()
+        return jsonify({"durum": "hata", "mesaj": str(e)}), 500
