@@ -143,18 +143,22 @@ def servis_gecmis():
         with get_conn() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    SELECT s.id, s.tarih, s.toplam_tutar, s.arac_json->>'plaka',
-                           s.arac_json->>'marka', s.arac_json->>'model'
-                    FROM servis s ORDER BY s.tarih DESC
+                    SELECT s.id, s.tarih, s.toplam_tutar, s.aciklama,
+                           s.arac_json->>'plaka',
+                           s.arac_json->>'marka',
+                           s.arac_json->>'model'
+                    FROM servis s
+                    ORDER BY s.tarih DESC
                 """)
                 rows = cursor.fetchall()
                 return jsonify([{
                     "id": r[0],
                     "tarih": r[1].isoformat(timespec="seconds"),
                     "toplam_tutar": float(r[2]),
-                    "plaka": r[3],
-                    "marka": r[4],
-                    "model": r[5]
+                    "aciklama": r[3] or "",  # None ise boş string döner
+                    "plaka": r[4],
+                    "marka": r[5],
+                    "model": r[6]
                 } for r in rows]), 200
     except Exception as e:
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
