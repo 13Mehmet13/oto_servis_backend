@@ -244,20 +244,33 @@ def servis_aktif():
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
 
-@servis_bp.route("/servis/tamamla/<int:servis_id>", methods=["POST"])
-def servis_tamamla(servis_id):
+@servis_bp.route("/servis/bitir", methods=["POST"])
+def servis_bitir():
     try:
+        data = request.get_json()
+        servis_id = data["servis_id"]
+        odeme_yapilmadi = data.get("odeme_yapilmadi", False)
+        toplam_tutar = float(data.get("toplam_tutar", 0))
+        parcalar = data.get("parcalar", [])
+
         with get_conn() as conn:
             with conn.cursor() as cursor:
-                cursor.execute("""
-                    UPDATE servis SET aciklama = 'SERVIS_BITTI'
-                    WHERE id = %s
-                """, (servis_id,))
-        return jsonify({"durum": "ok", "mesaj": "Servis tamamlandı"}), 200
+                cursor.execute("UPDATE servis SET aciklama = 'SERVIS_BİTTİ' WHERE id = %s", (servis_id,))
+                if odeme_yapilmadi:
+                    cursor.execute("""
+                        INSERT INTO cari_hareket (cari_id, tarih, tutar, aciklama, tur, parca_listesi_json)
+                        SELECT arac.musteri_id, NOW(), %s, 'Servis Borcu (bitirme)', 'alacak', %s
+                        FROM servis s
+                        JOIN arac ON s.arac_id = arac.id
+                        WHERE s.id = %s
+                    """, (toplam_tutar, json.dumps(parcalar), servis_id))
+            conn.commit()
+        return jsonify({"durum": "ok"})
     except Exception as e:
-        print("❌ servis_tamamla hatası:", e)
+        print("❌ Servis bitirme hatası:", e)
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
 
 
 @servis_bp.route("/servis/pdf/indir", methods=["GET"])
