@@ -360,52 +360,36 @@ def kasa_hareketleri():
                 cursor.execute("""
                     SELECT
                         ch.tarih, ch.aciklama, ch.tutar, ch.tur,
-                        ch.cari_id, ch.cari_tipi,
+                        ch.cari_id,
+                        c.tip AS cari_tip,
                         CASE
-                            WHEN ch.cari_tipi = 'sahis' THEN (
-                                SELECT row_to_json(m)
-                                FROM (
-                                    SELECT 'sahis' AS tipi, ad, soyad
-                                    FROM musteri
-                                    WHERE id = ch.cari_id
-                                ) m
+                            WHEN c.tip = 'parcaci' OR c.tip = 'usta' THEN c.ad
+                            WHEN c.tip = 'musteri' THEN (
+                                SELECT CONCAT(m.ad, ' ', m.soyad)
+                                FROM musteri m WHERE m.id = ch.cari_id
                             )
-                            WHEN ch.cari_tipi = 'kurum' THEN (
-                                SELECT row_to_json(k)
-                                FROM (
-                                    SELECT 'kurum' AS tipi, unvan, NULL AS soyad
-                                    FROM kurum
-                                    WHERE id = ch.cari_id
-                                ) k
-                            )
-                            WHEN ch.cari_tipi = 'usta' THEN (
-                                SELECT row_to_json(u)
-                                FROM (
-                                    SELECT 'usta' AS tipi, ad, soyad
-                                    FROM cariler
-                                    WHERE id = ch.cari_id
-                                ) u
-                            )
-                            ELSE NULL
-                        END AS cari
+                            ELSE ''
+                        END AS cari_ad
                     FROM cari_hareket ch
+                    LEFT JOIN cariler c ON ch.cari_id = c.id
                     ORDER BY ch.tarih DESC
                     LIMIT 100
                 """)
                 rows = cursor.fetchall()
-                colnames = [desc.name for desc in cursor.description]
-                hareketler = [dict(zip(colnames, row)) for row in rows]
-
-                # ISO format datetime dönüşümü
-                for h in hareketler:
-                    if isinstance(h["tarih"], (str, type(None))):
-                        continue
-                    h["tarih"] = h["tarih"].isoformat()
-                    if h["tutar"] is not None:
-                        h["tutar"] = float(h["tutar"])
-
+                hareketler = []
+                for row in rows:
+                    hareketler.append({
+                        "tarih": row[0].isoformat(),
+                        "aciklama": row[1],
+                        "tutar": float(row[2]),
+                        "tur": row[3],
+                        "cari_id": row[4],
+                        "cari": {
+                            "tipi": row[5],
+                            "ad": row[6]
+                        }
+                    })
                 return jsonify(hareketler), 200
-
     except Exception as e:
         print("❌ Kasa hareketleri hatası:", e)
         traceback.print_exc()
