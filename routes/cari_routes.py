@@ -82,11 +82,11 @@ def cari_hareket_ekle():
         if tur == "alacak":
             veri_turu = "alacak"  # cari bana borçlandı
         elif tur == "verecek":
-            veri_turu = "borc"    # ben cariye borçlandım
+            veri_turu = "verecek"    # ben cariye borçlandım
         elif tur == "odemeal":
             veri_turu = "odemeal"    # adam bana ödeme yaptı, borcu azaldı
         elif tur == "odemeyap":
-            veri_turu = "alacak"  # ben adama ödeme yaptım, benim borcum azaldı
+            veri_turu = "odemeyap"  # ben adama ödeme yaptım, benim borcum azaldı
 
         with get_conn() as conn:
             with conn.cursor() as cursor:
