@@ -358,24 +358,53 @@ def kasa_hareketleri():
         with get_conn() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    SELECT tarih, aciklama, tutar, tur
+                    SELECT tarih, aciklama, tutar, tur, cari_id, cari_tipi, arac_id
                     FROM cari_hareket
                     ORDER BY tarih DESC
                     LIMIT 100
                 """)
                 rows = cursor.fetchall()
                 hareketler = []
+
                 for row in rows:
-                    hareketler.append({
-                        "tarih": row[0].isoformat(),
-                        "aciklama": row[1],
-                        "tutar": float(row[2]),
-                        "tur": row[3]
-                    })
+                    tarih, aciklama, tutar, tur, cari_id, cari_tipi, arac_id = row
+                    hareket = {
+                        "tarih": tarih.isoformat(),
+                        "aciklama": aciklama,
+                        "tutar": float(tutar),
+                        "tur": tur,
+                        "cari": None,
+                        "arac": None
+                    }
+
+                    # CARI BILGISI
+                    if cari_id and cari_tipi:
+                        if cari_tipi == "sahis":
+                            cursor.execute("SELECT id, 'sahis' as tipi, ad, soyad FROM musteri WHERE id = %s", (cari_id,))
+                        elif cari_tipi == "kurum":
+                            cursor.execute("SELECT id, 'kurum' as tipi, unvan FROM kurum WHERE id = %s", (cari_id,))
+                        elif cari_tipi == "parcaci":
+                            cursor.execute("SELECT id, 'parcaci' as tipi, ad FROM cariler WHERE id = %s", (cari_id,))
+                        elif cari_tipi == "usta":
+                            cursor.execute("SELECT id, 'usta' as tipi, ad FROM cariler WHERE id = %s", (cari_id,))
+                        cari_row = cursor.fetchone()
+                        if cari_row:
+                            hareket["cari"] = dict(zip([desc[0] for desc in cursor.description], cari_row))
+
+                    # ARAÇ BİLGİSİ
+                    if arac_id:
+                        cursor.execute("SELECT id, plaka FROM arac WHERE id = %s", (arac_id,))
+                        arac_row = cursor.fetchone()
+                        if arac_row:
+                            hareket["arac"] = {"id": arac_row[0], "plaka": arac_row[1]}
+
+                    hareketler.append(hareket)
+
                 return jsonify(hareketler), 200
     except Exception as e:
         print("❌ Kasa hareketleri hatası:", e)
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
 
 
