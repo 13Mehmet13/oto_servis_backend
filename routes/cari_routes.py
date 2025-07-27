@@ -44,24 +44,33 @@ def tek_cari_getir(cari_id: int):
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
 
 # ─────────────────────  CARİ EKLE  ─────────────────────
+from flask import Blueprint, request, jsonify
+from db import get_conn  # conn & cursor döner
+
+cari_bp = Blueprint("cari", __name__)
+
+# ───────────────────── CARI EKLE ──────────────────────
 @cari_bp.route("/cari/ekle", methods=["POST"])
 def cari_ekle():
     try:
-        ad = request.form["ad"]
-        tip = request.form["tip"]
-        tel = request.form.get("telefon")
-        adr = request.form.get("adres")
+        data = request.get_json()
+        ad = data.get("ad", "").strip()
+        tip = data.get("tip", "").strip().lower()
+        telefon = data.get("telefon", "").strip()
+        adres = data.get("adres", "").strip()
+
+        if not ad or tip not in ("parcaci", "musteri", "usta"):
+            return jsonify({"durum": "hata", "mesaj": "Geçersiz veri"}), 400
 
         with get_conn() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    INSERT INTO cariler(ad, tip, telefon, adres)
-                    VALUES (%s,%s,%s,%s)
-                """, (ad, tip, tel, adr))
-                conn.commit()
-                return jsonify({"durum": "başarılı"}), 200
+                    INSERT INTO cariler (ad, tip, telefon, adres)
+                    VALUES (%s, %s, %s, %s)
+                """, (ad, tip, telefon or None, adres or None))
+
+        return jsonify({"durum": "ok"})
     except Exception as e:
-        traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
 
 # ─────────────────────  ÖDEME AL / ÖDEME YAP  ─────────────────────
