@@ -275,20 +275,31 @@ def kasa_ozet():
     try:
         with get_conn() as conn:
             with conn.cursor() as cursor:
-                cursor.execute("SELECT SUM(tutar) FROM cari_hareket WHERE tur = 'alacak'")
-                toplam_alacak = cursor.fetchone()[0] or 0
+                # Alacak: alacak - odemeal
+                cursor.execute("""
+                    SELECT 
+                        COALESCE(SUM(CASE WHEN tur = 'alacak' THEN tutar ELSE 0 END), 0) -
+                        COALESCE(SUM(CASE WHEN tur = 'odemeal' THEN tutar ELSE 0 END), 0)
+                """)
+                toplam_alacak = cursor.fetchone()[0]
 
-                cursor.execute("SELECT SUM(tutar) FROM cari_hareket WHERE tur = 'borc'")
-                toplam_borc = cursor.fetchone()[0] or 0
+                # Verecek: verecek - odemeyap
+                cursor.execute("""
+                    SELECT 
+                        COALESCE(SUM(CASE WHEN tur = 'verecek' THEN tutar ELSE 0 END), 0) -
+                        COALESCE(SUM(CASE WHEN tur = 'odemeyap' THEN tutar ELSE 0 END), 0)
+                """)
+                toplam_verecek = cursor.fetchone()[0]
 
                 return jsonify({
                     "toplam_alacak": float(toplam_alacak),
-                    "toplam_borc": float(toplam_borc)
+                    "toplam_verecek": float(toplam_verecek)
                 }), 200
     except Exception as e:
         print("❌ Kasa özeti hatası:", e)
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
 
 @cari_bp.route("/satislar", methods=["GET"])
 def satislari_getir():
