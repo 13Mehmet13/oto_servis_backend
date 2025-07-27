@@ -278,16 +278,16 @@ def kasa_ozet():
                 # Alacak = alacak - odemeal
                 cursor.execute("""
                     SELECT
-                        COALESCE(SUM(CASE WHEN tur = 'alacak' THEN tutar ELSE 0 END), 0) -
-                        COALESCE(SUM(CASE WHEN tur = 'odemeal' THEN tutar ELSE 0 END), 0)
+                        COALESCE(SUM(CASE WHEN tur = 'alacak' THEN tutar END), 0) -
+                        COALESCE(SUM(CASE WHEN tur = 'odemeal' THEN tutar END), 0)
                 """)
                 net_alacak = cursor.fetchone()[0] or 0
 
                 # Verecek = verecek - odemeyap
                 cursor.execute("""
                     SELECT
-                        COALESCE(SUM(CASE WHEN tur = 'verecek' THEN tutar ELSE 0 END), 0) -
-                        COALESCE(SUM(CASE WHEN tur = 'odemeyap' THEN tutar ELSE 0 END), 0)
+                        COALESCE(SUM(CASE WHEN tur = 'verecek' THEN tutar END), 0) -
+                        COALESCE(SUM(CASE WHEN tur = 'odemeyap' THEN tutar END), 0)
                 """)
                 net_verecek = cursor.fetchone()[0] or 0
 
