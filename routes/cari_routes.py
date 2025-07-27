@@ -363,11 +363,11 @@ def kasa_hareketleri():
                         ch.cari_id,
                         c.tip AS cari_tip,
                         CASE
-                            WHEN c.tip = 'parcaci' OR c.tip = 'usta' THEN c.ad
+                            WHEN c.tip IN ('parcaci', 'usta') THEN c.ad
                             WHEN c.tip = 'musteri' THEN (
                                 SELECT CONCAT(m.ad, ' ', m.soyad)
                                 FROM musteri m
-                                WHERE m.id = c.ref_id
+                                WHERE m.id = c.id
                             )
                             ELSE ''
                         END AS cari_ad
@@ -395,4 +395,3 @@ def kasa_hareketleri():
         print("❌ Kasa hareketleri hatası:", e)
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
-
