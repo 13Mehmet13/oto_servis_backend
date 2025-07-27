@@ -352,5 +352,30 @@ def cari_satis_ekle():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+@cari_bp.route("/kasa/hareketleri", methods=["GET"])
+def kasa_hareketleri():
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT tarih, aciklama, tutar, tur
+                    FROM cari_hareket
+                    ORDER BY tarih DESC
+                    LIMIT 100
+                """)
+                rows = cursor.fetchall()
+                hareketler = []
+                for row in rows:
+                    hareketler.append({
+                        "tarih": row[0].isoformat(),
+                        "aciklama": row[1],
+                        "tutar": float(row[2]),
+                        "tur": row[3]
+                    })
+                return jsonify(hareketler), 200
+    except Exception as e:
+        print("❌ Kasa hareketleri hatası:", e)
+        traceback.print_exc()
+        return jsonify({"durum": "hata", "mesaj": str(e)}), 500
 
 
