@@ -352,24 +352,26 @@ def cari_satis_ekle():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
 @cari_bp.route("/kasa/hareketleri", methods=["GET"])
 def kasa_hareketleri():
     try:
         with get_conn() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    SELECT
+                    SELECT 
                         ch.tarih, ch.aciklama, ch.tutar, ch.tur,
                         ch.cari_id,
                         c.tip AS cari_tip,
                         CASE
-                            WHEN c.tip IN ('parcaci', 'usta') THEN c.ad
                             WHEN c.tip = 'musteri' THEN (
-                                SELECT CONCAT(m.ad, ' ', m.soyad)
-                                FROM musteri m
-                                WHERE m.id = c.id
+                                SELECT CONCAT(m.ad, ' ', m.soyad) FROM musteri m WHERE m.id = c.ref_id
                             )
-                            ELSE ''
+                            WHEN c.tip = 'kurum' THEN (
+                                SELECT k.unvan FROM kurum k WHERE k.id = c.ref_id
+                            )
+                            WHEN c.tip = 'parcaci' OR c.tip = 'usta' THEN c.ad
+                            ELSE NULL
                         END AS cari_ad
                     FROM cari_hareket ch
                     LEFT JOIN cariler c ON ch.cari_id = c.id
@@ -388,7 +390,7 @@ def kasa_hareketleri():
                         "cari": {
                             "tipi": row[5],
                             "ad": row[6]
-                        }
+                        } if row[5] and row[6] else None
                     })
                 return jsonify(hareketler), 200
     except Exception as e:
