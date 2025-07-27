@@ -246,6 +246,53 @@ def aktif_servisler():
         print("❌ Aktif servis API hatası:", e)
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
 
+@servis_bp.route("/servis/aktif", methods=["GET"])
+def servis_aktif():
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT id, arac_id, km, yakit_durumu, iscilik_ucreti, toplam_tutar, aciklama, sikayetler, parcalar_json
+                    FROM servis
+                    WHERE aciklama = 'SERVIS_AKTIF'
+                    ORDER BY id DESC
+                """)
+                rows = cursor.fetchall()
+                servisler = []
+                for row in rows:
+                    servisler.append({
+                        "id": row[0],
+                        "arac_id": row[1],
+                        "km": row[2],
+                        "yakit_durumu": row[3],
+                        "iscilik_ucreti": float(row[4]),
+                        "toplam_tutar": float(row[5]),
+                        "aciklama": row[6],
+                        "sikayetler": row[7],
+                        "parcalar": row[8]
+                    })
+        return jsonify(servisler), 200
+    except Exception as e:
+        print("❌ servis_aktif hatası:", e)
+        traceback.print_exc()
+        return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
+@servis_bp.route("/servis/tamamla/<int:servis_id>", methods=["POST"])
+def servis_tamamla(servis_id):
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    UPDATE servis SET aciklama = 'SERVIS_BITTI'
+                    WHERE id = %s
+                """, (servis_id,))
+        return jsonify({"durum": "ok", "mesaj": "Servis tamamlandı"}), 200
+    except Exception as e:
+        print("❌ servis_tamamla hatası:", e)
+        traceback.print_exc()
+        return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
+
 @servis_bp.route("/servis/pdf/indir", methods=["GET"])
 def indir_servis_pdf():
     try:
