@@ -366,7 +366,8 @@ def kasa_hareketleri():
                             WHEN c.tip = 'parcaci' OR c.tip = 'usta' THEN c.ad
                             WHEN c.tip = 'musteri' THEN (
                                 SELECT CONCAT(m.ad, ' ', m.soyad)
-                                FROM musteri m WHERE m.id = ch.cari_id
+                                FROM musteri m
+                                WHERE m.id = c.ref_id
                             )
                             ELSE ''
                         END AS cari_ad
