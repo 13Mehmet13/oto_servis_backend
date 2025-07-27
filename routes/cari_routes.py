@@ -43,11 +43,6 @@ def tek_cari_getir(cari_id: int):
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
 
-# ─────────────────────  CARİ EKLE  ─────────────────────
-from flask import Blueprint, request, jsonify
-from db import get_conn  # conn & cursor döner
-
-cari_bp = Blueprint("cari", __name__)
 
 # ───────────────────── CARI EKLE ──────────────────────
 @cari_bp.route("/cari/ekle", methods=["POST"])
