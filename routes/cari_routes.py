@@ -403,3 +403,30 @@ def kasa_hareketleri():
         print("❌ kasa_hareketleri hatası:", e)
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
+@cari_bp.route("/cari/guncelle/<int:id>", methods=["PUT"])
+def cari_guncelle(id):
+    try:
+        data = request.get_json()
+
+        ad = data.get("ad", "").strip()
+        telefon = data.get("telefon", "").strip()
+
+        if not ad or not telefon:
+            return jsonify({"durum": "hata", "mesaj": "Ad ve telefon boş olamaz."}), 400
+
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    UPDATE cariler
+                    SET ad = %s, telefon = %s
+                    WHERE id = %s
+                """, (ad, telefon, id))
+                conn.commit()
+
+        return jsonify({"durum": "ok", "mesaj": "Cari güncellendi."})
+
+    except Exception as e:
+        print("❌ Cari güncelleme hatası:", e)
+        traceback.print_exc()
+        return jsonify({"durum": "hata", "mesaj": "Bir hata oluştu."}), 500
