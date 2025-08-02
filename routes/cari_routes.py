@@ -55,7 +55,9 @@ def cari_ekle():
         adres = data.get("adres", "").strip()
 
         if not ad or tip not in ("parcaci", "musteri", "usta"):
-            return jsonify({"durum": "hata", "mesaj": "Geçersiz veri"}), 400
+            return jsonify({"durum": "hata", "mesaj": "Geçersiz ad veya tip"}), 400
+
+        print(f"Gelen veri → ad: {ad}, tip: {tip}, telefon: {telefon}, adres: {adres}")
 
         with get_conn() as conn:
             with conn.cursor() as cursor:
@@ -63,10 +65,14 @@ def cari_ekle():
                     INSERT INTO cariler (ad, tip, telefon, adres)
                     VALUES (%s, %s, %s, %s)
                 """, (ad, tip, telefon or None, adres or None))
+            conn.commit()
 
         return jsonify({"durum": "ok"})
+    
     except Exception as e:
+        traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
 
 # ─────────────────────  ÖDEME AL / ÖDEME YAP  ─────────────────────
 @cari_bp.route("/cari/hareket/ekle", methods=["POST"])
