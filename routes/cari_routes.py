@@ -48,16 +48,20 @@ def tek_cari_getir(cari_id: int):
 @cari_bp.route("/cari/ekle", methods=["POST"])
 def cari_ekle():
     try:
-        data = request.get_json()
+        # JSON içeriğini doğrudan almaya çalış
+        try:
+            data = request.get_json(force=True)
+        except Exception:
+            # Eğer JSON değilse, form üzerinden yakala (Content-Type: application/x-www-form-urlencoded)
+            data = request.form.to_dict()
+
         ad = data.get("ad", "").strip()
         tip = data.get("tip", "").strip().lower()
         telefon = data.get("telefon", "").strip()
         adres = data.get("adres", "").strip()
 
         if not ad or tip not in ("parcaci", "musteri", "usta"):
-            return jsonify({"durum": "hata", "mesaj": "Geçersiz ad veya tip"}), 400
-
-        print(f"Gelen veri → ad: {ad}, tip: {tip}, telefon: {telefon}, adres: {adres}")
+            return jsonify({"durum": "hata", "mesaj": "Geçersiz veri"}), 400
 
         with get_conn() as conn:
             with conn.cursor() as cursor:
@@ -65,12 +69,9 @@ def cari_ekle():
                     INSERT INTO cariler (ad, tip, telefon, adres)
                     VALUES (%s, %s, %s, %s)
                 """, (ad, tip, telefon or None, adres or None))
-            conn.commit()
 
         return jsonify({"durum": "ok"})
-    
     except Exception as e:
-        traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
 
 
