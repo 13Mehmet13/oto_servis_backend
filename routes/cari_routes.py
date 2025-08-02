@@ -437,3 +437,18 @@ def cari_guncelle(id):
         print("❌ Cari güncelleme hatası:", e)
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": "Bir hata oluştu."}), 500
+
+@cari_bp.route("/cari/sil/<int:id>", methods=["DELETE"])
+def cari_sil(id):
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("DELETE FROM cariler WHERE id = %s", (id,))
+                if cursor.rowcount == 0:
+                    return jsonify({"durum": "hata", "mesaj": "Cari bulunamadı"}), 404
+                conn.commit()
+                return jsonify({"durum": "ok", "mesaj": f"{id} numaralı cari silindi"}), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
