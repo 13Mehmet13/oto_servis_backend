@@ -17,6 +17,8 @@ def create_servis_pdf(arac_id, km):
     pdf.output(file_path)
     return file_path
 @servis_bp.route("/servis/ekle", methods=["POST"])
+# --- SERVİS EKLE FONKSİYONU (CARİ OTOMATİK AÇMA DÜZELTİLMİŞ) ---
+
 def servis_ekle():
     try:
         with get_conn() as conn:
@@ -27,94 +29,124 @@ def servis_ekle():
                 iscilik_ucreti = float(request.form.get("iscilik_ucreti", 0))
                 toplam_tutar = float(request.form.get("toplam_tutar", 0))
                 sikayetler = request.form.get("sikayetler", "")
-                aciklama = request.form.get("aciklama", "")  # SERVIS_BITTI olabilir
+                aciklama = request.form.get("aciklama", "")
                 parcalar = json.loads(request.form.get("parcalar_json", "[]"))
                 odeme_yapilmadi = request.form.get("odeme_yapilmadi") == "true"
 
-                # Araç bilgilerini al
+                # --- Araç bilgileri ---
                 cursor.execute("""
                     SELECT id, plaka, model, motor, kw, musteri_tipi, musteri_id,
                            km, yakit_cinsi, sasi_no, marka_id, model_yili, yakit_durumu
                     FROM arac WHERE id = %s
                 """, (arac_id,))
                 arac_row = cursor.fetchone()
-                if not arac_row:
-                    return jsonify({"durum": "hata", "mesaj": "Araç bulunamadı"}), 404
 
                 arac_json = dict(zip([
                     "id", "plaka", "model", "motor", "kw", "musteri_tipi", "musteri_id",
                     "km", "yakit_cinsi", "sasi_no", "marka_id", "model_yili", "yakit_durumu"
                 ], arac_row))
 
-                # Marka adı
+                # Marka ekle
                 cursor.execute("SELECT ad FROM marka WHERE id = %s", (arac_json["marka_id"],))
                 m_row = cursor.fetchone()
                 arac_json["marka"] = m_row[0] if m_row else None
 
-                # Parça fiyatlarını ekle
+                # Parça fiyatlarını hesapla
                 for p in parcalar:
-                    if not p.get("manual") and p.get("parca_id"):
-                        cursor.execute("SELECT satis_fiyati FROM parca WHERE id = %s", (p["parca_id"],))
-                        fiyat = cursor.fetchone()
-                        if fiyat:
-                            birim_fiyat = float(fiyat[0])
-                            adet = int(p.get("quantity", 1))
-                            p["fiyat"] = birim_fiyat
-                            p["toplam_fiyat"] = round(birim_fiyat * adet, 2)
-                    elif p.get("manual"):
-                        birim_fiyat = float(p.get("sellPrice", 0))
-                        adet = int(p.get("quantity", 1))
-                        p["fiyat"] = birim_fiyat
-                        p["toplam_fiyat"] = round(birim_fiyat * adet, 2)
+                    adet = int(p.get("quantity", 1))
 
-                # Servisi ekle
+                    if not p.get("manual"):  # stoktan parça
+                        cursor.execute("SELECT satis_fiyati FROM parca WHERE id = %s", (p["parca_id"],))
+                        f = cursor.fetchone()
+                        if f:
+                            p["fiyat"] = float(f[0])
+                            p["toplam_fiyat"] = round(p["fiyat"] * adet, 2)
+
+                    else:  # manuel parça
+                        p["fiyat"] = float(p.get("sellPrice", 0))
+                        p["toplam_fiyat"] = round(p["fiyat"] * adet, 2)
+
+                # Servisi kaydet
                 cursor.execute("""
                     INSERT INTO servis (arac_id, tarih, aciklama, iscilik_ucreti,
                                         toplam_tutar, sikayetler, parcalar_json, arac_json)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING id
-                """, (arac_id, datetime.utcnow(), aciklama, iscilik_ucreti,
-                      toplam_tutar, sikayetler, json.dumps(parcalar), json.dumps(arac_json)))
+                """, (
+                    arac_id, datetime.utcnow(), aciklama, iscilik_ucreti,
+                    toplam_tutar, sikayetler, json.dumps(parcalar), json.dumps(arac_json)
+                ))
                 servis_id = cursor.fetchone()[0]
 
-                # KM ve yakıt güncelle
-                cursor.execute("UPDATE arac SET km = %s, yakit_durumu = %s WHERE id = %s", (km, yakit, arac_id))
+                # KM & yakıt güncelle
+                cursor.execute("UPDATE arac SET km = %s, yakit_durumu = %s WHERE id = %s",
+                               (km, yakit, arac_id))
 
                 # Stok düş
                 for p in parcalar:
                     if not p.get("manual") and p.get("parca_id"):
-                        cursor.execute("UPDATE parca SET stok = stok - %s WHERE id = %s",
-                                       (int(p.get("quantity", 0)), int(p["parca_id"])))
+                        cursor.execute(
+                            "UPDATE parca SET stok = stok - %s WHERE id = %s",
+                            (int(p["quantity"]), p["parca_id"])
+                        )
 
-                # Eğer servis bitti ve ödeme yapılmadıysa cari borç oluştur
+                # --- CARİ BORCU OLUŞTURMA (OTOMATİK CARİ AÇMA DAHİL) ---
                 if aciklama == "SERVIS_BITTI" and odeme_yapilmadi:
+
                     musteri_tipi = arac_json["musteri_tipi"]
                     musteri_id = arac_json["musteri_id"]
 
                     telefon = None
+                    cari_ad = None
+
+                    # --- ŞAHIS ---
                     if musteri_tipi == "sahis":
-                        cursor.execute("SELECT telefon FROM musteri WHERE id = %s", (musteri_id,))
+                        cursor.execute("SELECT ad, soyad, telefon FROM musteri WHERE id = %s", (musteri_id,))
                         row = cursor.fetchone()
-                        if row: telefon = row[0]
+
+                        if row:
+                            cari_ad = f"{row[0]} {row[1]}"          # AD + SOYAD
+                            telefon = row[2]
+
+                    # --- KURUM ---
                     elif musteri_tipi == "kurum":
-                        cursor.execute("SELECT telefon FROM kurum WHERE id = %s", (musteri_id,))
+                        cursor.execute("SELECT unvan, telefon FROM kurum WHERE id = %s", (musteri_id,))
                         row = cursor.fetchone()
-                        if row: telefon = row[0]
+
+                        if row:
+                            cari_ad = row[0]                       # ÜNVAN
+                            telefon = row[1]
 
                     if telefon:
+                        # 1) Cari var mı kontrol et
                         cursor.execute("SELECT id FROM cariler WHERE telefon = %s", (telefon,))
-                        cari_row = cursor.fetchone()
-                        if cari_row:
-                            cari_id = cari_row[0]
+                        c = cursor.fetchone()
+
+                        if c:
+                            cari_id = c[0]
+                        else:
+                            # 2) Yoksa yeni cari aç
                             cursor.execute("""
-                                INSERT INTO cari_hareket (cari_id, tutar, islem_turu, tarih, aciklama, parcalar_json)
-                                VALUES (%s, %s, 'alacak', CURRENT_TIMESTAMP, %s, %s)
+                                INSERT INTO cariler (ad, telefon, cari_tipi)
+                                VALUES (%s, %s, %s)
+                                RETURNING id
                             """, (
-                                cari_id,
-                                toplam_tutar,
-                                "Servis ücreti",
-                                json.dumps(parcalar)
+                                cari_ad,          # Şahıssa ad soyad, Kurumsa unvan
+                                telefon,
+                                "musteri"         # Tip sabit
                             ))
+                            cari_id = cursor.fetchone()[0]
+
+                        # 3) Cari hareketi kaydet
+                        cursor.execute("""
+                            INSERT INTO cari_hareket (cari_id, tutar, islem_turu, tarih, aciklama, parcalar_json)
+                            VALUES (%s, %s, 'alacak', CURRENT_TIMESTAMP, %s, %s)
+                        """, (
+                            cari_id,
+                            toplam_tutar,
+                            "Servis ücreti",
+                            json.dumps(parcalar)
+                        ))
 
                 conn.commit()
                 return jsonify({"durum": "başarılı", "servis_id": servis_id}), 200
