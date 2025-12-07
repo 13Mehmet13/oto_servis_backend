@@ -325,49 +325,87 @@ def servis_bitir():
         with get_conn() as conn:
             with conn.cursor() as cursor:
                 # 1. Servisi "bitti" olarak işaretle
-                cursor.execute("UPDATE servis SET aciklama = 'SERVIS_BITTI' WHERE id = %s", (servis_id,))
+                cursor.execute(
+                    "UPDATE servis SET aciklama = 'SERVIS_BITTI' WHERE id = %s",
+                    (servis_id,)
+                )
 
+                # 2. Ödeme yapılmadıysa cari borcu oluştur
                 if odeme_yapilmadi:
-                    # 2. Servis içindeki arac_json'u al
+                    # 2.1 Servis içindeki arac_json'u al
                     cursor.execute("SELECT arac_json FROM servis WHERE id = %s", (servis_id,))
                     row = cursor.fetchone()
                     if not row:
                         return jsonify({"durum": "hata", "mesaj": "Servis bulunamadı"}), 404
 
-                    arac_json = row[0]
+                    arac_json = row[0]  # JSONB ise dict olarak gelir
                     musteri_tipi = arac_json.get("musteri_tipi")
                     musteri_id = arac_json.get("musteri_id")
 
-                    # 3. Telefon bilgisini al
+                    # 2.2 Müşteri / Kurumdan ad ve telefon bilgisi al
                     telefon = None
-                    if musteri_tipi == "sahis":
-                        cursor.execute("SELECT telefon FROM musteri WHERE id = %s", (musteri_id,))
-                        tel_row = cursor.fetchone()
-                        if tel_row:
-                            telefon = tel_row[0]
-                    elif musteri_tipi == "kurum":
-                        cursor.execute("SELECT telefon FROM kurum WHERE id = %s", (musteri_id,))
-                        tel_row = cursor.fetchone()
-                        if tel_row:
-                            telefon = tel_row[0]
+                    cari_ad = None
 
-                    # 4. Telefonla cariler tablosundan cari_id bul
+                    if musteri_tipi == "sahis":
+                        cursor.execute(
+                            "SELECT ad, soyad, telefon FROM musteri WHERE id = %s",
+                            (musteri_id,)
+                        )
+                        tel_row = cursor.fetchone()
+                        if tel_row:
+                            cari_ad = f"{tel_row[0]} {tel_row[1]}"   # AD + SOYAD
+                            telefon = tel_row[2]
+
+                    elif musteri_tipi == "kurum":
+                        cursor.execute(
+                            "SELECT unvan, telefon FROM kurum WHERE id = %s",
+                            (musteri_id,)
+                        )
+                        tel_row = cursor.fetchone()
+                        if tel_row:
+                            cari_ad = tel_row[0]                     # ÜNVAN
+                            telefon = tel_row[1]
+
+                    # 2.3 Telefona göre cari bul / yoksa oluştur
                     if telefon:
-                        cursor.execute("SELECT id FROM cariler WHERE telefon = %s", (telefon,))
+                        cursor.execute(
+                            "SELECT id FROM cariler WHERE telefon = %s",
+                            (telefon,)
+                        )
                         cari_row = cursor.fetchone()
+
                         if cari_row:
                             cari_id = cari_row[0]
-                            cursor.execute("""
-                                INSERT INTO cari_hareket (cari_id, tarih, tutar, aciklama, tur, parca_listesi_json)
-                                VALUES (%s, CURRENT_TIMESTAMP, %s, %s, 'alacak', %s)
-                            """, (
-                                cari_id,
-                                toplam_tutar,
-                                "Servis Borcu (bitirme)",
-                                json.dumps(parcalar)
-                            ))
+                        else:
+                            # Yeni cari aç (adı müşteriden / kurumdan geliyor)
+                            if not cari_ad:
+                                cari_ad = "Bilinmeyen Müşteri"
 
-        conn.commit()
+                            cursor.execute("""
+                                INSERT INTO cariler (ad, telefon, cari_tipi)
+                                VALUES (%s, %s, %s)
+                                RETURNING id
+                            """, (
+                                cari_ad,      # şahıs: ad+soyad, kurum: unvan
+                                telefon,
+                                "musteri"     # şemana göre değiştirebilirsin
+                            ))
+                            cari_id = cursor.fetchone()[0]
+
+                        # 2.4 Cari hareketini ekle
+                        cursor.execute("""
+                            INSERT INTO cari_hareket (cari_id, tarih, tutar, aciklama, tur, parca_listesi_json)
+                            VALUES (%s, CURRENT_TIMESTAMP, %s, %s, 'alacak', %s)
+                        """, (
+                            cari_id,
+                            toplam_tutar,
+                            "Servis Borcu (bitirme)",
+                            json.dumps(parcalar)
+                        ))
+
+            # Tüm işlemleri kaydet
+            conn.commit()
+
         return jsonify({"durum": "ok"})
 
     except Exception as e:
