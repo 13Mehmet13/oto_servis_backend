@@ -1,11 +1,22 @@
 from flask import Blueprint, request, jsonify, send_file
 from datetime import datetime
 from db import get_conn
+import traceback
 import json
 import os
 from fpdf import FPDF
 
 servis_bp = Blueprint("servis", __name__)
+
+def parse_iskonto_tl(value):
+    try:
+        if value is None or value == "":
+            return 0.0
+        v = str(value).replace(",", ".").strip()
+        isk = float(v)
+        return round(max(0, isk), 2)
+    except:
+        return 0.0
 
 def create_servis_pdf(arac_id, km):
     pdf = FPDF()
@@ -16,6 +27,7 @@ def create_servis_pdf(arac_id, km):
     file_path = f"temp/servis_{arac_id}.pdf"
     pdf.output(file_path)
     return file_path
+
 @servis_bp.route("/servis/ekle", methods=["POST"])
 def servis_ekle():
     try:
@@ -30,6 +42,9 @@ def servis_ekle():
                 aciklama = request.form.get("aciklama", "")
                 parcalar = json.loads(request.form.get("parcalar_json", "[]"))
                 odeme_yapilmadi = request.form.get("odeme_yapilmadi") == "true"
+                iskonto_tl = parse_iskonto_tl(request.form.get("iskonto_tl"))
+                iskonto_not = request.form.get("iskonto_not", "")
+
 
                 # --- Araç bilgileri ---
                 cursor.execute("""
@@ -65,16 +80,23 @@ def servis_ekle():
                     else:  # manuel parça
                         p["fiyat"] = float(p.get("sellPrice", 0))
                         p["toplam_fiyat"] = round(p["fiyat"] * adet, 2)
+                       
+                        
+                toplam_tutar = max(0, toplam_tutar - iskonto_tl)
+
 
                 # Servisi kaydet
                 cursor.execute("""
                     INSERT INTO servis (arac_id, tarih, aciklama, iscilik_ucreti,
-                                        toplam_tutar, sikayetler, parcalar_json, arac_json)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    toplam_tutar, sikayetler, parcalar_json, arac_json,
+                    iskonto_tl, iskonto_not)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING id
                 """, (
                     arac_id, datetime.utcnow(), aciklama, iscilik_ucreti,
-                    toplam_tutar, sikayetler, json.dumps(parcalar), json.dumps(arac_json)
+                    toplam_tutar, sikayetler, json.dumps(parcalar), json.dumps(arac_json),
+                    iskonto_tl, iskonto_not
+
                 ))
                 servis_id = cursor.fetchone()[0]
 
@@ -187,6 +209,7 @@ def servis_detay(servis_id):
                     SELECT s.id, s.tarih, s.aciklama, s.sikayetler,
                            s.iscilik_ucreti, s.toplam_tutar,
                            s.parcalar_json::text, s.arac_json::text,
+                           s.iskonto_tl, s.iskonto_not,
                            a.musteri_tipi, a.musteri_id
                     FROM servis s
                     JOIN arac a ON s.arac_id = a.id
@@ -197,7 +220,7 @@ def servis_detay(servis_id):
                     return jsonify({"durum": "hata", "mesaj": "Servis bulunamadı"}), 404
 
                 (sid, tarih, aciklama, sikayetler, iscilik, toplam,
-                 parcalar_raw, arac_raw, mus_tipi, mus_id) = row
+                 parcalar_raw, arac_raw, iskonto_tl, iskonto_not, mus_tipi, mus_id) = row
 
                 detail = {
                     "id": sid,
@@ -208,22 +231,33 @@ def servis_detay(servis_id):
                     "toplam_tutar": toplam,
                     "parcalar": json.loads(parcalar_raw or "[]"),
                     "arac_json": json.loads(arac_raw or "{}"),
-                    "musteri_tipi": mus_tipi
+                    "musteri_tipi": mus_tipi,
+                    "iskonto_tl": float(iskonto_tl or 0),
+                    "iskonto_not": iskonto_not or ""
                 }
 
                 if mus_tipi == "kurum":
-                    cursor.execute("""SELECT ad, telefon, adres, \"Yetkili Ad\", \"Yetkili Soyad\"
+                    cursor.execute("""SELECT ad, telefon, adres, "Yetkili Ad", "Yetkili Soyad"
                                       FROM kurum WHERE id=%s""", (mus_id,))
                     k = cursor.fetchone()
                     if k:
-                        detail |= {"unvan": k[0], "telefon": k[1], "adres": k[2],
-                                   "yetkili_ad": k[3], "yetkili_soyad": k[4]}
+                        detail |= {
+                            "unvan": k[0],
+                            "telefon": k[1],
+                            "adres": k[2],
+                            "yetkili_ad": k[3],
+                            "yetkili_soyad": k[4]
+                        }
                 else:
                     cursor.execute("SELECT ad, soyad, telefon FROM musteri WHERE id=%s", (mus_id,))
                     k = cursor.fetchone()
                     if k:
-                        detail |= {"musteri_ad": k[0], "musteri_soyad": k[1],
-                                   "telefon": k[2], "adres": ""}
+                        detail |= {
+                            "musteri_ad": k[0],
+                            "musteri_soyad": k[1],
+                            "telefon": k[2],
+                            "adres": ""
+                        }
 
                 return jsonify(detail), 200
     except Exception as e:
@@ -235,23 +269,33 @@ def servis_gecmis():
         with get_conn() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    SELECT s.id, s.tarih, s.toplam_tutar, s.aciklama,
-                           s.arac_json->>'plaka',
-                           s.arac_json->>'marka',
-                           s.arac_json->>'model'
+                    SELECT 
+                        s.id,
+                        s.tarih,
+                        s.toplam_tutar,
+                        s.aciklama,
+                        s.iskonto_tl,
+                        s.iskonto_not,
+                        s.arac_json->>'plaka',
+                        s.arac_json->>'marka',
+                        s.arac_json->>'model'
                     FROM servis s
                     ORDER BY s.tarih DESC
                 """)
                 rows = cursor.fetchall()
+
                 return jsonify([{
                     "id": r[0],
                     "tarih": r[1].isoformat(timespec="seconds"),
                     "toplam_tutar": float(r[2]),
-                    "aciklama": r[3] or "",  # None ise boş string döner
-                    "plaka": r[4],
-                    "marka": r[5],
-                    "model": r[6]
+                    "aciklama": r[3] or "",
+                    "iskonto_tl": float(r[4] or 0),
+                    "iskonto_not": r[5] or "",
+                    "plaka": r[6],
+                    "marka": r[7],
+                    "model": r[8]
                 } for r in rows]), 200
+
     except Exception as e:
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
 
@@ -282,7 +326,13 @@ def servis_guncelle(servis_id):
         data = request.get_json()
         parcalar = data.get("parcalar", [])
         iscilik_ucreti = data.get("iscilik_ucreti", 0)
-        toplam_tutar = data.get("toplam_tutar", 0)  # <-- EKLE
+        toplam_tutar = data.get("toplam_tutar", 0)
+        iskonto_tl = float(data.get("iskonto_tl", 0) or 0)
+        iskonto_not = data.get("iskonto_not", "")
+
+        # ✅ İSKONTOYU TOPLAMDAN DÜŞ (negatif olmasın)
+        toplam_tutar = float(toplam_tutar or 0)
+        toplam_tutar = max(0, toplam_tutar - iskonto_tl)
 
         with get_conn() as conn:
             with conn.cursor() as cursor:
@@ -294,9 +344,11 @@ def servis_guncelle(servis_id):
                     UPDATE servis
                     SET iscilik_ucreti = %s,
                         parcalar_json = %s,
-                        toplam_tutar = %s         -- <-- EKLE
+                        toplam_tutar = %s,
+                        iskonto_tl = %s,
+                        iskonto_not = %s
                     WHERE id = %s
-                """, (iscilik_ucreti, json.dumps(parcalar), toplam_tutar, servis_id))  # <-- EKLE
+                """, (iscilik_ucreti, json.dumps(parcalar), toplam_tutar, iskonto_tl, iskonto_not, servis_id))
 
             conn.commit()
         return jsonify({"durum": "basarili"})
@@ -311,7 +363,9 @@ def servis_aktif():
         with get_conn() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    SELECT id, arac_id, km, yakit_durumu, iscilik_ucreti, toplam_tutar, aciklama, sikayetler, parcalar_json
+                    SELECT 
+                        id, arac_id, km, yakit_durumu, iscilik_ucreti, toplam_tutar, aciklama, sikayetler, parcalar_json,
+                        iskonto_tl, iskonto_not
                     FROM servis
                     WHERE aciklama = 'SERVIS_AKTIF'
                     ORDER BY id DESC
@@ -328,13 +382,16 @@ def servis_aktif():
                         "toplam_tutar": float(row[5]),
                         "aciklama": row[6],
                         "sikayetler": row[7],
-                        "parcalar": row[8]
+                        "parcalar": row[8],
+                        "iskonto_tl": float(row[9] or 0),
+                        "iskonto_not": row[10] or ""
                     })
         return jsonify(servisler), 200
     except Exception as e:
         print("❌ servis_aktif hatası:", e)
         traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
+
 
 @servis_bp.route("/servis/bitir", methods=["POST"])
 def servis_bitir():
@@ -357,9 +414,9 @@ def servis_bitir():
                 # 2) Ödeme yoksa cari borcu oluştur
                 if odeme_yapilmadi:
 
-                    # Servisten arac_json + arac_id al
+                    # Servisten arac_json + arac_id + iskonto al
                     cursor.execute(
-                        "SELECT arac_json, arac_id FROM servis WHERE id = %s",
+                        "SELECT arac_json, arac_id, iskonto_tl FROM servis WHERE id = %s",
                         (servis_id,)
                     )
                     row = cursor.fetchone()
@@ -368,6 +425,10 @@ def servis_bitir():
 
                     arac_json = row[0] or {}
                     arac_id = row[1]
+                    iskonto_tl = float(row[2] or 0)
+
+                    # ✅ İSKONTOYU TOPLAMDAN DÜŞ (cariye iskontolu yaz)
+                    toplam_tutar = max(0, toplam_tutar - iskonto_tl)
 
                     # musteri_tipi & musteri_id: önce arac_json'dan, yoksa arac tablosundan
                     musteri_tipi = arac_json.get("musteri_tipi")
@@ -446,6 +507,11 @@ def servis_bitir():
                         ))
                         cari_id = cursor.fetchone()[0]
 
+                    # ✅ açıklamaya iskonto bilgisi (isteğe bağlı ama faydalı)
+                    aciklama_cari = "Servis Borcu (bitirme)"
+                    if iskonto_tl > 0:
+                        aciklama_cari += f" (İskonto: -{iskonto_tl} TL)"
+
                     # 4) Cari hareketi ekle (müşteri bize borçlandı → ALACAK)
                     cursor.execute("""
                         INSERT INTO cari_hareket
@@ -453,7 +519,7 @@ def servis_bitir():
                         VALUES (%s, NOW(), %s, %s, 'alacak', %s)
                     """, (
                         cari_id,
-                        "Servis Borcu (bitirme)",
+                        aciklama_cari,
                         toplam_tutar,
                         json.dumps(parcalar)
                     ))
