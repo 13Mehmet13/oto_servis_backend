@@ -40,7 +40,7 @@ def servis_pdf(servis_id: int):
                 if not rec:
                     return jsonify({"durum": "hata", "mesaj": "Servis bulunamadı"}), 404
 
-                tarih, iscilik_raw, p_json, a_json, sikayetler = rec
+                tarih, iscilik_raw, p_json, a_json, sikayetler = rec,iskonto_tl,
                 iscilik = float(iscilik_raw or 0)
                 iskonto_tl = float(iskonto_tl or 0)
                 parcala = json.loads(p_json or "[]")
