@@ -32,7 +32,8 @@ def servis_pdf(servis_id: int):
         with get_conn() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    SELECT tarih, iscilik_ucreti, parcalar_json::text, arac_json::text, sikayetler
+                    SELECT tarih, iscilik_ucreti, parcalar_json::text, arac_json::text, sikayetler,
+                    iskonto_tl, iskonto_not
                     FROM servis
                     WHERE id = %s
                 """, (servis_id,))
@@ -42,6 +43,7 @@ def servis_pdf(servis_id: int):
 
                 tarih, iscilik_raw, p_json, a_json, sikayetler = rec
                 iscilik = float(iscilik_raw or 0)
+                iskonto_tl = float(iskonto_tl or 0)
                 parcala = json.loads(p_json or "[]")
                 arac = json.loads(a_json or "{}")
 
@@ -171,8 +173,18 @@ def servis_pdf(servis_id: int):
 
         # Toplam hesapları
         ara  = total_parts + iscilik
-        kdv  = ara*0.20
-        genel= ara+kdv
+        ara_iskontolu = max(0, ara - iskonto_tl)
+        kdv  = ara_iskontolu * 0.20
+        genel = ara_iskontolu + kdv
+        # ✅ İSKONTO satırı (Ara Toplamın üstünde)
+        if iskonto_tl > 0:
+            pdf.set_x(pdf.w - pdf.r_margin - 85)
+            pdf.set_fill_color(200, 220, 255)
+            pdf.cell(35, 6, "İSKONTO", border=1, align="R", fill=True)
+            pdf.set_fill_color(255)
+            # Notu istersen açıklamaya koyabiliriz ama hücre dar; burada sadece tutar yazıyoruz
+            pdf.cell(35, 6, f"-{iskonto_tl:.2f}", border=1, align="R")
+            pdf.ln()
         pdf.set_x(pdf.w-pdf.r_margin-85); pdf.set_fill_color(200,220,255)
         pdf.cell(35,6,"ARA TOPLAM",border=1,align="R",fill=True)
         pdf.set_fill_color(255); pdf.cell(35,6,f"{ara:.2f}",border=1,align="R"); pdf.ln()
