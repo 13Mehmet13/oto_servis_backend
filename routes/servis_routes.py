@@ -324,15 +324,13 @@ def servis_sil(servis_id):
 def servis_guncelle(servis_id):
     try:
         data = request.get_json()
-        parcalar = data.get("parcalar", [])
-        iscilik_ucreti = data.get("iscilik_ucreti", 0)
-        toplam_tutar = data.get("toplam_tutar", 0)
-        iskonto_tl = float(data.get("iskonto_tl", 0) or 0)
-        iskonto_not = data.get("iskonto_not", "")
 
-        # ✅ İSKONTOYU TOPLAMDAN DÜŞ (negatif olmasın)
-        toplam_tutar = float(toplam_tutar or 0)
-        toplam_tutar = max(0, toplam_tutar - iskonto_tl)
+        parcalar = data.get("parcalar", [])
+        iscilik_ucreti = float(data.get("iscilik_ucreti", 0) or 0)
+        toplam_tutar = float(data.get("toplam_tutar", 0) or 0)
+
+        # ✅ İskonto request'ten gelsin ve DB’ye yazılsın
+        iskonto_tl = float(data.get("iskonto_tl", 0) or 0)
 
         with get_conn() as conn:
             with conn.cursor() as cursor:
@@ -345,12 +343,18 @@ def servis_guncelle(servis_id):
                     SET iscilik_ucreti = %s,
                         parcalar_json = %s,
                         toplam_tutar = %s,
-                        iskonto_tl = %s,
-                        iskonto_not = %s
+                        iskonto_tl = %s
                     WHERE id = %s
-                """, (iscilik_ucreti, json.dumps(parcalar), toplam_tutar, iskonto_tl, iskonto_not, servis_id))
+                """, (
+                    iscilik_ucreti,
+                    json.dumps(parcalar),
+                    toplam_tutar,
+                    iskonto_tl,
+                    servis_id
+                ))
 
             conn.commit()
+
         return jsonify({"durum": "basarili"})
     except Exception as e:
         print("❌ Servis güncelleme hatası:", str(e))
