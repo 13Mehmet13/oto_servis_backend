@@ -32,8 +32,7 @@ def servis_pdf(servis_id: int):
         with get_conn() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    SELECT tarih, iscilik_ucreti, parcalar_json::text, arac_json::text, sikayetler,
-                    iskonto_tl, iskonto_not
+                    SELECT tarih, iscilik_ucreti, parcalar_json::text, arac_json::text, sikayetler,iskonto_tl
                     FROM servis
                     WHERE id = %s
                 """, (servis_id,))
