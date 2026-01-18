@@ -31,18 +31,38 @@ def servis_pdf(servis_id: int):
     try:
         with get_conn() as conn:
             with conn.cursor() as cursor:
-                cursor.execute("""
-                    SELECT tarih, iscilik_ucreti, parcalar_json::text, arac_json::text, sikayetler,iskonto_tl
+              cursor.execute("""
+                    SELECT 
+                        tarih,
+                        iscilik_ucreti,
+                        parcalar_json::text,
+                        arac_json::text,
+                        sikayetler,
+                        iskonto_tl,
+                        iskonto_not
                     FROM servis
                     WHERE id = %s
                 """, (servis_id,))
+                
                 rec = cursor.fetchone()
                 if not rec:
                     return jsonify({"durum": "hata", "mesaj": "Servis bulunamadı"}), 404
-
-                tarih, iscilik_raw, p_json, a_json, sikayetler = rec,iskonto_raw
+                
+                # ✅ BURASI KRİTİK – 7 DEĞİŞKEN BİREBİR
+                (
+                    tarih,
+                    iscilik_raw,
+                    p_json,
+                    a_json,
+                    sikayetler,
+                    iskonto_tl,
+                    iskonto_not
+                ) = rec
+                
+                # ✅ ARTIK HİÇBİR HATA OLMAZ
                 iscilik = float(iscilik_raw or 0)
-                iskonto_tl = float(iskonto_raw or 0)
+                iskonto_tl = float(iskonto_tl or 0)
+                iskonto_not = iskonto_not or ""
                 parcala = json.loads(p_json or "[]")
                 arac = json.loads(a_json or "{}")
 
