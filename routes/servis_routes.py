@@ -5,8 +5,20 @@ import traceback
 import json
 import os
 from fpdf import FPDF
+from decimal import Decimal
 
 servis_bp = Blueprint("servis", __name__)
+
+def to_float(v, default=0.0):
+    try:
+        if v is None:
+            return default
+        if isinstance(v, Decimal):
+            return float(v)
+        return float(str(v).replace(",", "."))
+    except Exception:
+        return default
+
 
 def parse_iskonto_tl(value):
     try:
@@ -206,61 +218,85 @@ def servis_detay(servis_id):
         with get_conn() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    SELECT s.id, s.tarih, s.aciklama, s.sikayetler,
-                           s.iscilik_ucreti, s.toplam_tutar,
-                           s.parcalar_json::text, s.arac_json::text,
-                           s.iskonto_tl, s.iskonto_not,
-                           a.musteri_tipi, a.musteri_id
+                    SELECT
+                        s.id, s.tarih, s.aciklama, s.sikayetler,
+                        s.iscilik_ucreti, s.toplam_tutar,
+                        s.parcalar_json::text, s.arac_json::text,
+                        s.iskonto_tl, s.iskonto_not,
+                        a.musteri_tipi, a.musteri_id
                     FROM servis s
                     JOIN arac a ON s.arac_id = a.id
                     WHERE s.id = %s
                 """, (servis_id,))
                 row = cursor.fetchone()
+
                 if not row:
                     return jsonify({"durum": "hata", "mesaj": "Servis bulunamadı"}), 404
 
                 (sid, tarih, aciklama, sikayetler, iscilik, toplam,
                  parcalar_raw, arac_raw, iskonto_tl, iskonto_not, mus_tipi, mus_id) = row
 
+                # JSON parse güvenliği
+                try:
+                    parcalar = json.loads(parcalar_raw or "[]")
+                except Exception:
+                    parcalar = []
+
+                try:
+                    arac_json = json.loads(arac_raw or "{}")
+                except Exception:
+                    arac_json = {}
+
                 detail = {
                     "id": sid,
-                    "tarih": tarih.isoformat(timespec="seconds"),
-                    "aciklama": aciklama,
-                    "sikayetler": sikayetler,
-                    "iscilik_ucreti": iscilik,
-                    "toplam_tutar": toplam,
-                    "parcalar": json.loads(parcalar_raw or "[]"),
-                    "arac_json": json.loads(arac_raw or "{}"),
-                    "musteri_tipi": mus_tipi,
-                    "iskonto_tl": float(iskonto_tl or 0),
+                    "tarih": tarih.isoformat(timespec="seconds") if tarih else None,
+                    "aciklama": aciklama or "",
+                    "sikayetler": sikayetler or "",
+                    "iscilik_ucreti": to_float(iscilik, 0.0),
+                    "toplam_tutar": to_float(toplam, 0.0),
+                    "parcalar": parcalar,
+                    "arac_json": arac_json,
+                    "musteri_tipi": mus_tipi or "",
+                    "iskonto_tl": to_float(iskonto_tl, 0.0),     # ✅ kesin döner
                     "iskonto_not": iskonto_not or ""
                 }
 
+                # Müşteri bilgileri
                 if mus_tipi == "kurum":
-                    cursor.execute("""SELECT ad, telefon, adres, "Yetkili Ad", "Yetkili Soyad"
-                                      FROM kurum WHERE id=%s""", (mus_id,))
+                    cursor.execute("""
+                        SELECT ad, telefon, adres, "Yetkili Ad", "Yetkili Soyad"
+                        FROM kurum
+                        WHERE id = %s
+                    """, (mus_id,))
                     k = cursor.fetchone()
                     if k:
-                        detail |= {
-                            "unvan": k[0],
-                            "telefon": k[1],
-                            "adres": k[2],
-                            "yetkili_ad": k[3],
-                            "yetkili_soyad": k[4]
-                        }
+                        detail.update({
+                            "unvan": k[0] or "",
+                            "telefon": k[1] or "",
+                            "adres": k[2] or "",
+                            "yetkili_ad": k[3] or "",
+                            "yetkili_soyad": k[4] or "",
+                        })
                 else:
-                    cursor.execute("SELECT ad, soyad, telefon FROM musteri WHERE id=%s", (mus_id,))
+                    cursor.execute("""
+                        SELECT ad, soyad, telefon
+                        FROM musteri
+                        WHERE id = %s
+                    """, (mus_id,))
                     k = cursor.fetchone()
                     if k:
-                        detail |= {
-                            "musteri_ad": k[0],
-                            "musteri_soyad": k[1],
-                            "telefon": k[2],
+                        detail.update({
+                            "musteri_ad": k[0] or "",
+                            "musteri_soyad": k[1] or "",
+                            "telefon": k[2] or "",
                             "adres": ""
-                        }
+                        })
 
                 return jsonify(detail), 200
+
     except Exception as e:
+        print("❌ servis_detay hatası:", e)
+        traceback.print_exc()
         return jsonify({"durum": "hata", "mesaj": str(e)}), 500
 
 @servis_bp.route("/servis/gecmis", methods=["GET"])
