@@ -31,7 +31,7 @@ def servis_pdf(servis_id: int):
     try:
         with get_conn() as conn:
             with conn.cursor() as cursor:
-              cursor.execute("""
+                cursor.execute("""
                     SELECT 
                         tarih,
                         iscilik_ucreti,
@@ -43,12 +43,11 @@ def servis_pdf(servis_id: int):
                     FROM servis
                     WHERE id = %s
                 """, (servis_id,))
-                
+
                 rec = cursor.fetchone()
                 if not rec:
                     return jsonify({"durum": "hata", "mesaj": "Servis bulunamadı"}), 404
-                
-                # ✅ BURASI KRİTİK – 7 DEĞİŞKEN BİREBİR
+
                 (
                     tarih,
                     iscilik_raw,
@@ -58,8 +57,7 @@ def servis_pdf(servis_id: int):
                     iskonto_tl,
                     iskonto_not
                 ) = rec
-                
-                # ✅ ARTIK HİÇBİR HATA OLMAZ
+
                 iscilik = float(iscilik_raw or 0)
                 iskonto_tl = float(iskonto_tl or 0)
                 iskonto_not = iskonto_not or ""
