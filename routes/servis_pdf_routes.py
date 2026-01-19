@@ -200,7 +200,7 @@ def servis_pdf(servis_id: int):
             pdf.set_fill_color(255); pdf.cell(35, 6, f"{iskonto_tl:.2f}", border=1, align="R"); pdf.ln()
         pdf.set_x(pdf.w-pdf.r_margin-85); pdf.set_fill_color(200,220,255)
         pdf.cell(35,6,"ARA TOPLAM",border=1,align="R",fill=True)
-        pdf.set_fill_color(255); pdf.cell(35,6,f"{ara:.2f}",border=1,align="R"); pdf.ln()
+        pdf.set_fill_color(255); pdf.cell(35,6,f"{ara_iskontolu:.2f}",border=1,align="R"); pdf.ln()
         pdf.set_x(pdf.w-pdf.r_margin-85); pdf.set_fill_color(200,220,255)
         pdf.cell(35,6,"KDV %20",border=1,align="R",fill=True)
         pdf.set_fill_color(255); pdf.cell(35,6,f"{kdv:.2f}",border=1,align="R"); pdf.ln()
